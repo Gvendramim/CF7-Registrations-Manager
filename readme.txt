@@ -5,7 +5,7 @@ Captura e gerencia automaticamente as inscrições enviadas por qualquer formul�
 
 == Description ==
 
-Music Club Registrations é um plugin totalmente reutilizável: através da tela de Settings, o administrador escolhe qual formulário do Contact Form 7 deve ser monitorado e mapeia os campos desse formulário para os slots internos do plugin (Nome do aluno, Nome do responsável, Email, Telefone, Turma, Programa e Mensagem). Nenhum ID de formulário ou nome de campo permanece fixo no código-fonte, o que torna o plugin adequado para qualquer projeto ou cliente, bastando reconfigurar a tela de Settings.
+CF7 Registrations Manager é um plugin totalmente reutilizável: através da tela de Settings, o administrador escolhe qual formulário do Contact Form 7 deve ser monitorado e mapeia os campos desse formulário para os slots internos do plugin (Nome do aluno, Nome do responsável, Email, Telefone, Turma, Programa e Mensagem). Nenhum ID de formulário ou nome de campo permanece fixo no código-fonte, o que torna o plugin adequado para qualquer projeto ou cliente, bastando reconfigurar a tela de Settings.
 
 Principais recursos:
 
