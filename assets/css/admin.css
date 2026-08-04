@@ -1,0 +1,238 @@
+/**
+ * Estilos administrativos do plugin Music Club Registrations.
+ */
+
+.mcr-wrap .mcr-export-actions {
+	display: inline-block;
+	margin-left: 8px;
+}
+
+.mcr-wrap .mcr-export-filtered {
+	margin-top: 12px;
+}
+
+.mcr-status-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.8;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+
+.mcr-status-new {
+	background: #e5f1ff;
+	color: #0a5dc2;
+}
+
+.mcr-status-contacted {
+	background: #fff4e0;
+	color: #9a6700;
+}
+
+.mcr-status-confirmed {
+	background: #e6f7e9;
+	color: #1a7f37;
+}
+
+.mcr-status-cancelled {
+	background: #fde7e9;
+	color: #c62828;
+}
+
+.mcr-detail-wrap .mcr-detail-columns {
+	display: flex;
+	gap: 24px;
+	margin-top: 16px;
+	align-items: flex-start;
+}
+
+.mcr-detail-wrap .mcr-detail-main {
+	flex: 1 1 auto;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	padding: 20px;
+	max-width: 780px;
+}
+
+.mcr-detail-wrap .mcr-detail-sidebar {
+	flex: 0 0 300px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	padding: 20px;
+}
+
+.mcr-detail-wrap .mcr-detail-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.mcr-history-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.mcr-history-list li {
+	border-bottom: 1px solid #f0f0f1;
+	padding: 10px 0;
+}
+
+.mcr-history-list li:last-child {
+	border-bottom: none;
+}
+
+.mcr-history-date {
+	color: #646970;
+	font-size: 12px;
+	float: right;
+}
+
+.mcr-history-user {
+	color: #646970;
+	font-size: 12px;
+}
+
+.mcr-history-change {
+	margin-top: 4px;
+	font-size: 13px;
+}
+
+/* Dashboard */
+.mcr-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 16px;
+	margin: 16px 0;
+}
+
+.mcr-stats-grid-status {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.mcr-stat-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 20px;
+	text-align: center;
+}
+
+.mcr-stat-value {
+	display: block;
+	font-size: 28px;
+	font-weight: 700;
+	color: #1d2327;
+}
+
+.mcr-stat-label {
+	display: block;
+	margin-top: 4px;
+	color: #646970;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+
+.mcr-stat-card-status.mcr-status-new { border-left: 4px solid #0a5dc2; }
+.mcr-stat-card-status.mcr-status-contacted { border-left: 4px solid #9a6700; }
+.mcr-stat-card-status.mcr-status-confirmed { border-left: 4px solid #1a7f37; }
+.mcr-stat-card-status.mcr-status-cancelled { border-left: 4px solid #c62828; }
+
+.mcr-charts-grid {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: 16px;
+	margin: 24px 0;
+}
+
+.mcr-chart-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 20px;
+}
+
+.mcr-chart-card h2 {
+	margin-top: 0;
+}
+
+/* Export panels */
+.mcr-export-panels {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+	margin-top: 12px;
+}
+
+.mcr-export-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 16px;
+}
+
+.mcr-export-panel h3 {
+	margin-top: 0;
+}
+
+.mcr-column-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 14px;
+	margin-bottom: 12px;
+}
+
+.mcr-column-option {
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+/* Settings */
+.mcr-settings-wrap h2 {
+	margin-top: 28px;
+}
+
+/* Logs */
+.mcr-logs-filter {
+	margin: 12px 0;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.mcr-logs-table td,
+.mcr-logs-table th {
+	vertical-align: top;
+}
+
+.mcr-log-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.mcr-log-info {
+	background: #e5f1ff;
+	color: #0a5dc2;
+}
+
+.mcr-log-warning {
+	background: #fff4e0;
+	color: #9a6700;
+}
+
+.mcr-log-error {
+	background: #fde7e9;
+	color: #c62828;
+}
+
+.mcr-clear-logs-form {
+	margin-top: 16px;
+}
