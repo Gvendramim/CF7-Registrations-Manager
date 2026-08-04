@@ -1,5 +1,3 @@
-=== Music Club Registrations ===
-Contributors: Gabriel Vendramim
 Tags: contact form 7, registrations, forms, database, export, dashboard, rest api
 Requires PHP: 8.1
 
