@@ -61,6 +61,7 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 == Changelog ==
 
 = 1.0.0 =
+* Initial release.
 * Added support for new registration fields: Child's Age, Additional Email, and Additional Phone — tracked end-to-end through capture, database, REST API, CSV/XLSX export, Excel Online sync, Dashboard, Registrations list, and the detail screen.
 * Safe, additive, idempotent database migration for the new columns; existing registrations and forms without these fields keep working unchanged.
 * Child's Age is validated (3–13) and exported as a real Excel number; invalid or missing values degrade gracefully to empty, never a fatal error.
@@ -89,6 +90,3 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 * Backup and restore (settings-only or full data) as downloadable JSON.
 * Internal database versioning and automatic migrations.
 * UI polish: toast notifications, loading states, contextual help, dark-mode-aware styling.
-
-= 1.0.0 =
-* Initial release.
