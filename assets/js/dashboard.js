@@ -67,5 +67,97 @@
 				},
 			} );
 		}
+
+		var monthlyCanvas = document.getElementById( 'mcr-monthly-chart' );
+		if ( monthlyCanvas && data.monthly ) {
+			new window.Chart( monthlyCanvas.getContext( '2d' ), {
+				type: 'bar',
+				data: {
+					labels: data.monthly.labels,
+					datasets: [
+						{
+							label: 'Registrations',
+							data: data.monthly.values,
+							backgroundColor: '#2271b1',
+							borderRadius: 4,
+						},
+					],
+				},
+				options: {
+					responsive: true,
+					plugins: {
+						legend: { display: false },
+					},
+					scales: {
+						y: {
+							beginAtZero: true,
+							ticks: { precision: 0 },
+						},
+					},
+				},
+			} );
+		}
+
+		var classCanvas = document.getElementById( 'mcr-class-chart' );
+		if ( classCanvas && data.byClass ) {
+			new window.Chart( classCanvas.getContext( '2d' ), {
+				type: 'bar',
+				data: {
+					labels: data.byClass.labels,
+					datasets: [
+						{
+							label: 'Registrations',
+							data: data.byClass.values,
+							backgroundColor: '#9a6700',
+							borderRadius: 4,
+						},
+					],
+				},
+				options: {
+					indexAxis: 'y',
+					responsive: true,
+					plugins: {
+						legend: { display: false },
+					},
+					scales: {
+						x: {
+							beginAtZero: true,
+							ticks: { precision: 0 },
+						},
+					},
+				},
+			} );
+		}
+
+		var interestCanvas = document.getElementById( 'mcr-interest-chart' );
+		if ( interestCanvas && data.byInterest ) {
+			new window.Chart( interestCanvas.getContext( '2d' ), {
+				type: 'bar',
+				data: {
+					labels: data.byInterest.labels,
+					datasets: [
+						{
+							label: 'Registrations',
+							data: data.byInterest.values,
+							backgroundColor: '#1a7f37',
+							borderRadius: 4,
+						},
+					],
+				},
+				options: {
+					indexAxis: 'y',
+					responsive: true,
+					plugins: {
+						legend: { display: false },
+					},
+					scales: {
+						x: {
+							beginAtZero: true,
+							ticks: { precision: 0 },
+						},
+					},
+				},
+			} );
+		}
 	} );
 } )();

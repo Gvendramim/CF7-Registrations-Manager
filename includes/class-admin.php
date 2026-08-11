@@ -66,6 +66,53 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'handle_actions' ) );
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
+		add_action( 'admin_post_mcr_download_logs', array( $this, 'handle_download_logs' ) );
+		add_action( 'admin_post_mcr_test_rest_api', array( $this, 'handle_test_rest_api' ) );
+		add_action( 'current_screen', array( $this, 'register_contextual_help' ) );
+	}
+
+	/**
+	 * Adiciona ajuda contextual (aba "Help" no canto superior direito) em
+	 * cada tela do plugin, orientando o administrador sem sair da página.
+	 *
+	 * @param \WP_Screen $screen Tela atual do admin.
+	 * @return void
+	 */
+	public function register_contextual_help( $screen ) {
+		if ( ! $screen || false === strpos( $screen->id, 'music-club' ) ) {
+			return;
+		}
+
+		$help_content = array(
+			self::MENU_SLUG      => __( 'The Dashboard gives you a quick overview of your registrations: totals, recent activity and status breakdown. Use the charts to spot trends at a glance.', 'music-club-registrations' ),
+			self::LIST_SLUG       => __( 'Search, filter, sort and manage registrations here. Select rows with the checkboxes to apply bulk actions or export just those rows.', 'music-club-registrations' ),
+			self::SETTINGS_SLUG    => __( 'Choose which Contact Form 7 form to monitor, map its fields, configure duplicate prevention, connect Excel Online, and manage backups — all without touching any code.', 'music-club-registrations' ),
+			self::LOGS_SLUG        => __( 'Every important event (errors, exports, status changes) is recorded here. Use the filters to narrow down results, or download them as a CSV file.', 'music-club-registrations' ),
+			Setup_Wizard::PAGE_SLUG => __( 'This wizard walks you through the one-time setup: checking your environment, selecting a form, mapping its fields and confirming everything works.', 'music-club-registrations' ),
+		);
+
+		// Escolhe a correspondência mais específica (slug mais longo) em
+		// vez da primeira encontrada - necessário porque o nome da tela de
+		// páginas como Detalhes ou o Setup Wizard também contém o slug do
+		// menu principal (por serem registradas como seus submenus), então
+		// uma verificação simples de "contém" poderia casar com o item
+		// errado.
+		$matched_slug = '';
+		foreach ( array_keys( $help_content ) as $slug ) {
+			if ( false !== strpos( $screen->id, $slug ) && strlen( $slug ) > strlen( $matched_slug ) ) {
+				$matched_slug = $slug;
+			}
+		}
+
+		if ( '' !== $matched_slug ) {
+			$screen->add_help_tab(
+				array(
+					'id'      => 'mcr-help-' . $matched_slug,
+					'title'   => __( 'About This Screen', 'music-club-registrations' ),
+					'content' => '<p>' . esc_html( $help_content[ $matched_slug ] ) . '</p>',
+				)
+			);
+		}
 	}
 
 	/**
@@ -78,8 +125,8 @@ class Admin {
 		$capability = apply_filters( 'mcr_manage_capability', 'manage_options' );
 
 		add_menu_page(
-			__( 'Music Club', 'music-club-registrations' ),
-			__( 'Music Club', 'music-club-registrations' ),
+			__( 'CF7 Registrations', 'music-club-registrations' ),
+			__( 'CF7 Registrations', 'music-club-registrations' ),
 			$capability,
 			self::MENU_SLUG,
 			array( $this, 'render_dashboard_page' ),
@@ -124,8 +171,21 @@ class Admin {
 		);
 
 		// Página oculta (não aparece no menu) usada pela tela de detalhes.
+		//
+		// IMPORTANTE: usamos `null` como página-pai de propósito. É a forma
+		// oficialmente documentada pelo WordPress de registrar uma página
+		// de admin acessível sem exibi-la em nenhum menu.
+		//
+		// Uma versão anterior deste arquivo tentava "esconder" esta página
+		// registrando-a como submenu normal e chamando
+		// remove_submenu_page() em seguida - isso parecia funcionar, mas
+		// remove_submenu_page() também apaga a entrada que o WordPress usa
+		// internamente (user_can_access_admin_page()) para AUTORIZAR o
+		// acesso à página, então a página passava a exibir "Sorry, you are
+		// not allowed to access this page." para todo mundo, inclusive
+		// administradores. Não repita esse erro.
 		add_submenu_page(
-			null, // phpcs:ignore WordPressVIPMinimum.Hooks.RestrictedHooks -- página intencionalmente oculta do menu.
+			null,
 			__( 'Registration Details', 'music-club-registrations' ),
 			__( 'Registration Details', 'music-club-registrations' ),
 			$capability,
@@ -165,9 +225,12 @@ class Admin {
 			'mcr-admin',
 			'MCRAdmin',
 			array(
-				'confirmDelete' => __( 'Are you sure you want to delete this registration? This action cannot be undone.', 'music-club-registrations' ),
-				'confirmBulk'   => __( 'Are you sure you want to apply this action to the selected registrations?', 'music-club-registrations' ),
-				'confirmClearLogs' => __( 'Are you sure you want to clear all logs? This action cannot be undone.', 'music-club-registrations' ),
+				'confirmDelete'      => __( 'Are you sure you want to delete this registration? This action cannot be undone.', 'music-club-registrations' ),
+				'confirmBulk'        => __( 'Are you sure you want to apply this action to the selected registrations?', 'music-club-registrations' ),
+				'confirmClearLogs'   => __( 'Are you sure you want to clear all logs? This action cannot be undone.', 'music-club-registrations' ),
+				'toastSaved'         => __( 'Saved successfully.', 'music-club-registrations' ),
+				'toastDeleted'       => __( 'Deleted successfully.', 'music-club-registrations' ),
+				'toastSetupComplete' => __( 'Setup complete! The plugin is ready.', 'music-club-registrations' ),
 			)
 		);
 
@@ -199,14 +262,29 @@ class Admin {
 	 * @return array
 	 */
 	private function get_dashboard_chart_data() {
-		$series  = Database::get_registrations_per_day( 30 );
-		$stats   = Database::get_dashboard_stats();
-		$statuses = mcr_get_statuses();
+		$series        = Database::get_registrations_per_day( 30 );
+		$monthly       = Database::get_registrations_per_month( 12 );
+		$by_class      = Database::get_registrations_by_class( 10 );
+		$by_interest   = Database::get_registrations_by_interest( 10 );
+		$stats         = Database::get_dashboard_stats();
+		$statuses      = mcr_get_statuses();
 
 		return array(
-			'timeline' => array(
+			'timeline'    => array(
 				'labels' => wp_list_pluck( $series, 'date' ),
 				'values' => wp_list_pluck( $series, 'count' ),
+			),
+			'monthly'     => array(
+				'labels' => wp_list_pluck( $monthly, 'month' ),
+				'values' => wp_list_pluck( $monthly, 'count' ),
+			),
+			'byClass'     => array(
+				'labels' => wp_list_pluck( $by_class, 'class' ),
+				'values' => wp_list_pluck( $by_class, 'count' ),
+			),
+			'byInterest'  => array(
+				'labels' => wp_list_pluck( $by_interest, 'interest' ),
+				'values' => wp_list_pluck( $by_interest, 'count' ),
 			),
 			'statusChart' => array(
 				'labels' => array_values( $statuses ),
@@ -258,6 +336,8 @@ class Admin {
 
 		$stats           = Database::get_dashboard_stats();
 		$monitored_form  = $this->get_monitored_form_label();
+		$excel_sync_stats = Database::get_sync_stats();
+		$excel_connected  = Excel_OAuth::is_fully_configured();
 
 		require MCR_PLUGIN_DIR . 'includes/views/view-dashboard.php';
 	}
@@ -333,7 +413,22 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'music-club-registrations' ) );
 		}
 
-		$settings        = Settings::get_all();
+		$settings     = Settings::get_all();
+		$active_tab   = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
+		$allowed_tabs = array( 'general', 'excel', 'backup', 'advanced' );
+		if ( ! in_array( $active_tab, $allowed_tabs, true ) ) {
+			$active_tab = 'general';
+		}
+
+		// A aba "Advanced > Microsoft Integration" contém credenciais
+		// sensíveis (Client ID/Secret do app Microsoft) e deve ficar
+		// disponível apenas para administradores com a capability mais
+		// alta do WordPress - independentemente do filtro
+		// `mcr_manage_capability`, que pode ter sido reduzido para outros
+		// papéis terem acesso ao restante do plugin.
+		if ( 'advanced' === $active_tab && ! current_user_can( 'manage_options' ) ) {
+			$active_tab = 'general';
+		}
 
 		// Permite pré-visualizar os campos de um formulário diferente do
 		// atualmente salvo, antes de confirmar o mapeamento e salvar. O botão
@@ -353,7 +448,53 @@ class Admin {
 		$statuses         = mcr_get_statuses();
 		$rest_namespace   = REST_API::NAMESPACE_NAME;
 
-		require MCR_PLUGIN_DIR . 'includes/views/view-settings.php';
+		$rest_test_result = get_transient( 'mcr_rest_test_result_' . get_current_user_id() );
+		delete_transient( 'mcr_rest_test_result_' . get_current_user_id() );
+
+		$backup_notice = get_transient( 'mcr_backup_notice_' . get_current_user_id() );
+		delete_transient( 'mcr_backup_notice_' . get_current_user_id() );
+
+		// Dados exclusivos da aba "Excel Online" (só precisam ser
+		// calculados quando ela está ativa, para evitar chamadas
+		// desnecessárias à Microsoft Graph API nas demais abas).
+		$ms_connection    = array();
+		$ms_workbooks     = array();
+		$ms_worksheets    = array();
+		$ms_tables        = array();
+		$ms_test_result   = null;
+		$ms_sync_summary  = null;
+		$ms_redirect_uri  = '';
+		$ms_app_configured = Settings::is_excel_app_configured();
+
+		if ( 'excel' === $active_tab ) {
+			$ms_redirect_uri = Excel_OAuth::get_redirect_uri();
+			$ms_connection   = Excel_OAuth::get_connection();
+
+			if ( Excel_OAuth::is_connected() ) {
+				$workbooks = Excel_Graph::list_workbooks();
+				$ms_workbooks = is_wp_error( $workbooks ) ? array() : $workbooks;
+
+				if ( ! empty( $ms_connection['drive_id'] ) && ! empty( $ms_connection['item_id'] ) ) {
+					$worksheets    = Excel_Graph::list_worksheets( $ms_connection['drive_id'], $ms_connection['item_id'] );
+					$ms_worksheets = is_wp_error( $worksheets ) ? array() : $worksheets;
+				}
+
+				if ( ! empty( $ms_connection['worksheet_name'] ) ) {
+					$tables    = Excel_Graph::list_tables( $ms_connection['drive_id'], $ms_connection['item_id'], $ms_connection['worksheet_name'] );
+					$ms_tables = is_wp_error( $tables ) ? array() : $tables;
+				}
+			}
+
+			$ms_test_result  = get_transient( 'mcr_ms_test_result_' . get_current_user_id() );
+			delete_transient( 'mcr_ms_test_result_' . get_current_user_id() );
+
+			$ms_sync_summary = get_transient( 'mcr_ms_sync_summary_' . get_current_user_id() );
+			delete_transient( 'mcr_ms_sync_summary_' . get_current_user_id() );
+		}
+
+		$ms_sync_stats = Database::get_sync_stats();
+
+		require_once MCR_PLUGIN_DIR . 'includes/views/view-settings.php';
 	}
 
 	/**
@@ -366,21 +507,27 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'music-club-registrations' ) );
 		}
 
-		$current_page  = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
-		$current_level = isset( $_GET['level'] ) ? sanitize_text_field( wp_unslash( $_GET['level'] ) ) : '';
+		$current_page    = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+		$current_level   = isset( $_GET['level'] ) ? sanitize_text_field( wp_unslash( $_GET['level'] ) ) : '';
+		$current_context = isset( $_GET['context'] ) ? sanitize_text_field( wp_unslash( $_GET['context'] ) ) : '';
+		$current_search  = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 
-		$result = Logger::query_logs(
-			array(
-				'level'    => $current_level,
-				'per_page' => 30,
-				'page'     => $current_page,
-			)
+		$query_args = array(
+			'level'    => $current_level,
+			'context'  => $current_context,
+			'search'   => $current_search,
+			'per_page' => 30,
+			'page'     => $current_page,
 		);
 
-		$logs       = $result['items'];
-		$total_logs = $result['total'];
-		$per_page   = 30;
-		$total_pages = (int) ceil( $total_logs / $per_page );
+		$result = Logger::query_logs( $query_args );
+
+		$logs             = $result['items'];
+		$total_logs       = $result['total'];
+		$per_page         = 30;
+		$total_pages      = (int) ceil( $total_logs / $per_page );
+		$available_contexts = Logger::get_distinct_contexts();
+		$download_nonce   = wp_create_nonce( 'mcr_download_logs' );
 
 		require MCR_PLUGIN_DIR . 'includes/views/view-logs.php';
 	}
@@ -422,28 +569,48 @@ class Admin {
 			wp_die( esc_html__( 'Security check failed. Please try again.', 'music-club-registrations' ) );
 		}
 
-		$raw_field_map = isset( $_POST['field_map'] ) && is_array( $_POST['field_map'] )
-			? wp_unslash( $_POST['field_map'] )
-			: array();
+		// Cada aba da tela de Settings envia apenas os campos que ela
+		// exibe. Sem essa distinção, salvar a aba "Excel Integration", por
+		// exemplo, apagaria o formulário monitorado e o mapeamento de
+		// campos configurados na aba "General" (que não são reenviados
+		// nesse formulário). Partimos sempre das configurações já salvas e
+		// sobrescrevemos apenas a seção correspondente.
+		$section = isset( $_POST['settings_section'] ) ? sanitize_key( wp_unslash( $_POST['settings_section'] ) ) : 'general';
+		$input   = Settings::get_all();
 
-		$input = array(
-			'form_id'                  => isset( $_POST['form_id'] ) ? absint( $_POST['form_id'] ) : 0,
-			'field_map'                => $raw_field_map,
-			'default_status'           => isset( $_POST['default_status'] ) ? sanitize_text_field( wp_unslash( $_POST['default_status'] ) ) : 'new',
-			'duplicate_check_enabled'  => ! empty( $_POST['duplicate_check_enabled'] ),
-			'duplicate_window_minutes' => isset( $_POST['duplicate_window_minutes'] ) ? absint( $_POST['duplicate_window_minutes'] ) : 5,
-			'api_key'                  => Settings::get( 'api_key', '' ),
-			'remove_data_on_uninstall' => ! empty( $_POST['remove_data_on_uninstall'] ),
-			'enable_excel_export'      => ! empty( $_POST['enable_excel_export'] ),
-		);
+		if ( 'general' === $section ) {
+			$raw_field_map = isset( $_POST['field_map'] ) && is_array( $_POST['field_map'] )
+				? wp_unslash( $_POST['field_map'] )
+				: array();
+
+			$input['form_id']                  = isset( $_POST['form_id'] ) ? absint( $_POST['form_id'] ) : 0;
+			$input['field_map']                = $raw_field_map;
+			$input['default_status']           = isset( $_POST['default_status'] ) ? sanitize_text_field( wp_unslash( $_POST['default_status'] ) ) : 'new';
+			$input['duplicate_check_enabled']  = ! empty( $_POST['duplicate_check_enabled'] );
+			$input['duplicate_window_minutes'] = isset( $_POST['duplicate_window_minutes'] ) ? absint( $_POST['duplicate_window_minutes'] ) : 5;
+			$input['remove_data_on_uninstall'] = ! empty( $_POST['remove_data_on_uninstall'] );
+			$input['enable_excel_export']      = ! empty( $_POST['enable_excel_export'] );
+		} elseif ( 'advanced' === $section ) {
+			// Credenciais do app Microsoft (Client ID/Secret), visíveis
+			// apenas em Settings > Advanced > Microsoft Integration - o
+			// cliente final nunca vê nem precisa preencher esta seção.
+			if ( ! current_user_can( 'manage_options' ) ) {
+				wp_die( esc_html__( 'You do not have permission to perform this action.', 'music-club-registrations' ) );
+			}
+
+			$input['excel_app'] = isset( $_POST['excel_app'] ) && is_array( $_POST['excel_app'] )
+				? wp_unslash( $_POST['excel_app'] )
+				: array();
+		}
 
 		Settings::save( $input );
 
-		Logger::info( 'settings', 'Plugin settings updated.', get_current_user_id() );
+		Logger::info( 'settings', sprintf( 'Plugin settings updated (%s).', $section ), get_current_user_id() );
 
 		$redirect = add_query_arg(
 			array(
 				'page'    => self::SETTINGS_SLUG,
+				'tab'     => 'advanced' === $section ? 'advanced' : 'general',
 				'updated' => 1,
 			),
 			admin_url( 'admin.php' )
@@ -510,6 +677,92 @@ class Admin {
 		);
 
 		wp_safe_redirect( $redirect );
+		exit;
+	}
+
+	/**
+	 * Processa o download dos logs filtrados em formato CSV.
+	 *
+	 * @return void
+	 */
+	public function handle_download_logs() {
+		if ( ! mcr_current_user_can_manage() ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'music-club-registrations' ) );
+		}
+
+		check_admin_referer( 'mcr_download_logs' );
+
+		$args = array(
+			'level'   => isset( $_GET['level'] ) ? sanitize_text_field( wp_unslash( $_GET['level'] ) ) : '',
+			'context' => isset( $_GET['context'] ) ? sanitize_text_field( wp_unslash( $_GET['context'] ) ) : '',
+			'search'  => isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '',
+		);
+
+		$logs = Logger::get_all_matching( $args );
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename=music-club-logs-' . gmdate( 'Y-m-d-His' ) . '.csv' );
+
+		$handle = fopen( 'php://output', 'w' );
+		fwrite( $handle, "\xEF\xBB\xBF" );
+		fputcsv( $handle, array( 'Level', 'Context', 'Message', 'User ID', 'Date' ), Export::detect_csv_delimiter() );
+
+		foreach ( $logs as $log ) {
+			fputcsv(
+				$handle,
+				array( $log['level'], $log['context'], $log['message'], $log['user_id'], $log['created_at'] ),
+				Export::detect_csv_delimiter()
+			);
+		}
+
+		fclose( $handle );
+		exit;
+	}
+
+	/**
+	 * Processa o botão "Test Connection" da API REST: realiza uma chamada
+	 * real ao endpoint /registrations utilizando a chave de API atual, e
+	 * reporta se a autenticação e a rota estão funcionando corretamente.
+	 *
+	 * @return void
+	 */
+	public function handle_test_rest_api() {
+		if ( ! mcr_current_user_can_manage() ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'music-club-registrations' ) );
+		}
+
+		check_admin_referer( 'mcr_test_rest_api' );
+
+		$url = add_query_arg(
+			array( 'api_key' => Settings::get( 'api_key', '' ) ),
+			trailingslashit( get_rest_url() ) . REST_API::NAMESPACE_NAME . '/registrations'
+		);
+
+		$response = wp_remote_get( $url, array( 'timeout' => 15 ) );
+
+		if ( is_wp_error( $response ) ) {
+			$result = array(
+				'success' => false,
+				'message' => $response->get_error_message(),
+			);
+		} else {
+			$code = wp_remote_retrieve_response_code( $response );
+			$result = array(
+				'success' => 200 === $code,
+				'message' => 200 === $code
+					? __( 'REST API is working correctly.', 'music-club-registrations' )
+					: sprintf(
+						/* translators: %d: HTTP status code */
+						__( 'REST API test failed (HTTP %d). Check your permalink settings and API key.', 'music-club-registrations' ),
+						$code
+					),
+			);
+		}
+
+		set_transient( 'mcr_rest_test_result_' . get_current_user_id(), $result, 60 );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SETTINGS_SLUG . '&tab=general' ) );
 		exit;
 	}
 

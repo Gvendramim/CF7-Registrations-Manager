@@ -141,3 +141,60 @@ function mcr_sanitize_phone( $phone ) {
 
 	return preg_replace( '/[^0-9+\-\(\)\s]/', '', $phone );
 }
+
+/**
+ * Retorna o rótulo e o ícone Dashicons apropriados para um status de
+ * sincronização com o Excel Online, usado na listagem e na tela de
+ * detalhes de uma inscrição.
+ *
+ * @param string $status Slug do status ('synced', 'pending', 'syncing', 'failed', 'not_configured').
+ * @return array{label:string,icon:string,css_class:string}
+ */
+function mcr_get_excel_sync_status_meta( $status ) {
+	$map = array(
+		'synced'         => array(
+			'label' => __( 'Synced', 'music-club-registrations' ),
+			'icon'  => 'dashicons-yes-alt',
+		),
+		'pending'        => array(
+			'label' => __( 'Pending', 'music-club-registrations' ),
+			'icon'  => 'dashicons-clock',
+		),
+		'syncing'        => array(
+			'label' => __( 'Syncing…', 'music-club-registrations' ),
+			'icon'  => 'dashicons-update',
+		),
+		'failed'         => array(
+			'label' => __( 'Failed', 'music-club-registrations' ),
+			'icon'  => 'dashicons-warning',
+		),
+		'not_configured' => array(
+			'label' => __( 'Not configured', 'music-club-registrations' ),
+			'icon'  => 'dashicons-minus',
+		),
+	);
+
+	$meta = $map[ $status ] ?? $map['not_configured'];
+
+	$meta['css_class'] = 'mcr-excel-sync-' . sanitize_html_class( $status );
+
+	return $meta;
+}
+
+/**
+ * Renderiza o "badge" (ícone + rótulo) de status de sincronização com o
+ * Excel Online, para uso na listagem e na tela de detalhes.
+ *
+ * @param string $status Slug do status.
+ * @return string Marcação HTML já escapada.
+ */
+function mcr_render_excel_sync_badge( $status ) {
+	$meta = mcr_get_excel_sync_status_meta( $status );
+
+	return sprintf(
+		'<span class="mcr-excel-sync-badge %1$s"><span class="dashicons %2$s"></span> %3$s</span>',
+		esc_attr( $meta['css_class'] ),
+		esc_attr( $meta['icon'] ),
+		esc_html( $meta['label'] )
+	);
+}

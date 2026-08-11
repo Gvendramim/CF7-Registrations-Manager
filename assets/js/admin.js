@@ -70,4 +70,101 @@
 		$( '#mcr-load-fields-btn' ).trigger( 'click' );
 	} );
 
+	/**
+	 * Sistema simples de notificações "toast", usado para dar feedback
+	 * amigável após ações do administrador (ex: importação de backup).
+	 */
+	function mcrShowToast( message, type ) {
+		var $container = $( '#mcr-toast-container' );
+
+		if ( ! $container.length ) {
+			$container = $( '<div>', { id: 'mcr-toast-container' } ).appendTo( 'body' );
+		}
+
+		var $toast = $( '<div>', {
+			class: 'mcr-toast mcr-toast-' + ( type || 'info' ),
+			text: message,
+		} ).appendTo( $container );
+
+		window.setTimeout( function () {
+			$toast.addClass( 'is-visible' );
+		}, 10 );
+
+		window.setTimeout( function () {
+			$toast.removeClass( 'is-visible' );
+			window.setTimeout( function () {
+				$toast.remove();
+			}, 250 );
+		}, 4000 );
+	}
+	window.mcrShowToast = mcrShowToast;
+
+	// Exibe um toast de sucesso automaticamente quando a URL contém um
+	// parâmetro de confirmação conhecido (ex: depois de um redirect).
+	$( function () {
+		var params = new window.URLSearchParams( window.location.search );
+
+		if ( params.get( 'updated' ) ) {
+			mcrShowToast( ( window.MCRAdmin && window.MCRAdmin.toastSaved ) || 'Saved successfully.', 'success' );
+		}
+		if ( params.get( 'deleted' ) ) {
+			mcrShowToast( ( window.MCRAdmin && window.MCRAdmin.toastDeleted ) || 'Deleted successfully.', 'success' );
+		}
+		if ( params.get( 'setup_complete' ) ) {
+			mcrShowToast( ( window.MCRAdmin && window.MCRAdmin.toastSetupComplete ) || 'Setup complete! The plugin is ready.', 'success' );
+		}
+	} );
+
+	// Mostra um indicador de carregamento nos botões de exportação e
+	// sincronização, para que o administrador saiba que a ação está em
+	// andamento (arquivos grandes podem levar alguns segundos a gerar).
+	$( document ).on( 'click', '.mcr-export-panel button[type="submit"], .mcr-test-connection-btn, .mcr-sync-now-btn, .mcr-ms-connect-btn, #mcr-selected-export-form button[type="submit"]', function () {
+		var $button = $( this );
+		window.setTimeout( function () {
+			$button.addClass( 'mcr-is-loading' );
+		}, 0 );
+		// A navegação do navegador para o download/redirecionamento
+		// substitui a página, então o estado é revertido naturalmente.
+	} );
+
+	/**
+	 * Excel Online: seleção em cascata de Workbook → Worksheet → Table.
+	 *
+	 * O <select> de workbook combina drive_id/item_id/nome em um único
+	 * "value" (separados por "|"), decompostos aqui em campos ocultos
+	 * antes do envio automático do formulário - assim a página recarrega
+	 * já mostrando a próxima etapa (worksheets), preenchida com dados
+	 * reais lidos da Microsoft Graph API no servidor.
+	 */
+	$( document ).on( 'change', '#mcr-ms-workbook', function () {
+		var parts = $( this ).val().split( '|' );
+
+		if ( parts.length < 3 ) {
+			return;
+		}
+
+		var $form = $( this ).closest( 'form' );
+		$form.find( '.mcr-ms-hidden-drive' ).val( parts[ 0 ] );
+		$form.find( '.mcr-ms-hidden-item' ).val( parts[ 1 ] );
+		$form.find( '.mcr-ms-hidden-name' ).val( parts.slice( 2 ).join( '|' ) );
+		$form.trigger( 'submit' );
+	} );
+
+	$( document ).on( 'change', '#mcr-ms-worksheet', function () {
+		$( this ).closest( 'form' ).trigger( 'submit' );
+	} );
+
+	$( document ).on( 'change', '#mcr-ms-table', function () {
+		var parts = $( this ).val().split( '|' );
+
+		if ( parts.length < 2 ) {
+			return;
+		}
+
+		var $form = $( this ).closest( 'form' );
+		$form.find( '.mcr-ms-hidden-table-id' ).val( parts[ 0 ] );
+		$form.find( '.mcr-ms-hidden-table-name' ).val( parts.slice( 1 ).join( '|' ) );
+		$form.trigger( 'submit' );
+	} );
+
 } )( jQuery );

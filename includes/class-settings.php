@@ -41,13 +41,16 @@ class Settings {
 	 */
 	public static function get_field_slots() {
 		return array(
-			'child_name'         => __( 'Student Name', 'music-club-registrations' ),
-			'parent_name'        => __( 'Parent/Guardian Name', 'music-club-registrations' ),
-			'parent_email'       => __( 'Email', 'music-club-registrations' ),
-			'phone'              => __( 'Phone', 'music-club-registrations' ),
-			'child_class'        => __( 'Class', 'music-club-registrations' ),
-			'interests'          => __( 'Program', 'music-club-registrations' ),
-			'additional_message' => __( 'Message', 'music-club-registrations' ),
+			'child_name'          => __( 'Student Name', 'music-club-registrations' ),
+			'child_age'           => __( "Child's Age", 'music-club-registrations' ),
+			'parent_name'         => __( 'Parent/Guardian Name', 'music-club-registrations' ),
+			'parent_email'        => __( 'Primary Email', 'music-club-registrations' ),
+			'phone'               => __( 'Primary Phone', 'music-club-registrations' ),
+			'second_parent_email' => __( 'Additional Email', 'music-club-registrations' ),
+			'second_parent_phone' => __( 'Additional Phone', 'music-club-registrations' ),
+			'child_class'         => __( 'Class', 'music-club-registrations' ),
+			'interests'           => __( 'Program', 'music-club-registrations' ),
+			'additional_message'  => __( 'Message', 'music-club-registrations' ),
 		);
 	}
 
@@ -60,13 +63,16 @@ class Settings {
 		return array(
 			'form_id'                  => 0,
 			'field_map'                => array(
-				'child_name'         => '',
-				'parent_name'        => '',
-				'parent_email'       => '',
-				'phone'              => '',
-				'child_class'        => '',
-				'interests'          => '',
-				'additional_message' => '',
+				'child_name'          => '',
+				'child_age'           => '',
+				'parent_name'         => '',
+				'parent_email'        => '',
+				'phone'               => '',
+				'second_parent_email' => '',
+				'second_parent_phone' => '',
+				'child_class'         => '',
+				'interests'           => '',
+				'additional_message'  => '',
 			),
 			'default_status'           => 'new',
 			'duplicate_check_enabled'  => true,
@@ -74,6 +80,14 @@ class Settings {
 			'api_key'                  => '',
 			'remove_data_on_uninstall' => false,
 			'enable_excel_export'      => true,
+			'excel_app'                => array(
+				'client_id'     => '',
+				'client_secret' => '',
+				// 'common' permite login com contas de qualquer organização
+				// Microsoft 365 ou conta pessoal (multi-tenant), sem exigir
+				// que o desenvolvedor conheça o Tenant ID do cliente final.
+				'tenant'        => 'common',
+			),
 		);
 	}
 
@@ -98,6 +112,13 @@ class Settings {
 		$settings['field_map'] = wp_parse_args(
 			is_array( $settings['field_map'] ) ? $settings['field_map'] : array(),
 			self::get_defaults()['field_map']
+		);
+
+		// Idem para as configurações avançadas do app Microsoft (Advanced >
+		// Microsoft Integration), adicionadas em uma versão posterior.
+		$settings['excel_app'] = wp_parse_args(
+			is_array( $settings['excel_app'] ) ? $settings['excel_app'] : array(),
+			self::get_defaults()['excel_app']
 		);
 
 		return $settings;
@@ -155,12 +176,33 @@ class Settings {
 			'api_key'                  => isset( $input['api_key'] ) ? sanitize_text_field( $input['api_key'] ) : self::get( 'api_key', '' ),
 			'remove_data_on_uninstall' => ! empty( $input['remove_data_on_uninstall'] ),
 			'enable_excel_export'      => ! empty( $input['enable_excel_export'] ),
+			'excel_app'                => self::get( 'excel_app', $defaults['excel_app'] ),
 		);
 
 		foreach ( array_keys( $defaults['field_map'] ) as $slot ) {
 			$settings['field_map'][ $slot ] = isset( $input['field_map'][ $slot ] )
 				? sanitize_text_field( $input['field_map'][ $slot ] )
 				: '';
+		}
+
+		// As credenciais do app Microsoft (Advanced > Microsoft
+		// Integration) são enviadas por um formulário separado, visível
+		// apenas ao desenvolvedor/administrador avançado. Quando
+		// presentes, substituem os valores salvos anteriormente.
+		if ( isset( $input['excel_app'] ) && is_array( $input['excel_app'] ) ) {
+			$raw = $input['excel_app'];
+
+			$current_secret = self::get( 'excel_app', $defaults['excel_app'] )['client_secret'];
+
+			$settings['excel_app'] = array(
+				'client_id'     => isset( $raw['client_id'] ) ? sanitize_text_field( $raw['client_id'] ) : '',
+				'client_secret' => isset( $raw['client_secret'] ) && '' !== $raw['client_secret']
+					? sanitize_text_field( $raw['client_secret'] )
+					: $current_secret,
+				'tenant'        => isset( $raw['tenant'] ) && '' !== trim( $raw['tenant'] )
+					? sanitize_text_field( $raw['tenant'] )
+					: 'common',
+			);
 		}
 
 		if ( empty( $settings['api_key'] ) ) {
@@ -201,6 +243,20 @@ class Settings {
 		update_option( self::OPTION_NAME, $settings );
 
 		return $settings['api_key'];
+	}
+
+	/**
+	 * Verifica se as credenciais do app Microsoft (Advanced > Microsoft
+	 * Integration) já foram configuradas pelo desenvolvedor/administrador
+	 * avançado - pré-requisito único e feito uma única vez antes que
+	 * clientes finais possam clicar em "Connect Microsoft 365".
+	 *
+	 * @return bool
+	 */
+	public static function is_excel_app_configured() {
+		$app = self::get( 'excel_app', array() );
+
+		return ! empty( $app['client_id'] ) && ! empty( $app['client_secret'] );
 	}
 
 	/**
@@ -255,21 +311,31 @@ class Settings {
 			return array();
 		}
 
-		$contact_form = \WPCF7_ContactForm::get_instance( $form_id );
+		// Protegido com try/catch: uma incompatibilidade de versão do
+		// Contact Form 7 (ou um formulário corrompido) nunca deve derrubar
+		// a tela de configurações inteira com um erro fatal - nesse caso,
+		// simplesmente não há campos para pré-selecionar.
+		try {
+			$contact_form = \WPCF7_ContactForm::get_instance( $form_id );
 
-		if ( ! $contact_form ) {
+			if ( ! $contact_form ) {
+				return array();
+			}
+
+			$tags  = $contact_form->scan_form_tags();
+			$names = array();
+
+			foreach ( $tags as $tag ) {
+				if ( ! empty( $tag->name ) ) {
+					$names[ $tag->name ] = $tag->name;
+				}
+			}
+
+			return array_values( $names );
+		} catch ( \Throwable $exception ) {
+			Logger::error( 'form', 'Failed to read Contact Form 7 fields: ' . $exception->getMessage() );
+
 			return array();
 		}
-
-		$tags  = $contact_form->scan_form_tags();
-		$names = array();
-
-		foreach ( $tags as $tag ) {
-			if ( ! empty( $tag->name ) ) {
-				$names[ $tag->name ] = $tag->name;
-			}
-		}
-
-		return array_values( $names );
 	}
 }

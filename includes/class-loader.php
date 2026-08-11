@@ -60,8 +60,17 @@ class Loader {
 		// passar pelo hook de ativação novamente.
 		Settings::ensure_api_key();
 
+		// Verifica e aplica migrações de banco de dados pendentes, mesmo se
+		// o plugin tiver sido atualizado sem passar pelo hook de ativação.
+		( new Migrations() )->maybe_migrate();
+
 		// Captura de envios do Contact Form 7 (formulário definido em Settings).
 		( new Form_Handler() )->register_hooks();
+
+		// Fila de sincronização com o Excel Online: precisa ficar sempre
+		// ativa (não apenas no admin), pois o processamento roda via
+		// WP-Cron, que executa fora do contexto de wp-admin.
+		( new Excel_Sync_Queue() )->register_hooks();
 
 		// API REST protegida.
 		( new REST_API() )->register_hooks();
@@ -73,6 +82,10 @@ class Loader {
 		if ( is_admin() ) {
 			( new Admin() )->register_hooks();
 			( new Export() )->register_hooks();
+			( new Setup_Wizard() )->register_hooks();
+			( new Backup() )->register_hooks();
+			( new Excel_OAuth() )->register_hooks();
+			( new Excel_Online() )->register_hooks();
 		}
 	}
 }

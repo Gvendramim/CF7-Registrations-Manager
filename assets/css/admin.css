@@ -144,7 +144,7 @@
 
 .mcr-charts-grid {
 	display: grid;
-	grid-template-columns: 2fr 1fr;
+	grid-template-columns: repeat(2, 1fr);
 	gap: 16px;
 	margin: 24px 0;
 }
@@ -233,6 +233,360 @@
 	color: #c62828;
 }
 
+.mcr-log-critical {
+	background: #c62828;
+	color: #fff;
+}
+
 .mcr-clear-logs-form {
 	margin-top: 16px;
+}
+
+.mcr-inline-warning {
+	color: #b32d2e;
+}
+
+/* Setup Wizard */
+.mcr-wizard-wrap {
+	max-width: 760px;
+}
+
+.mcr-wizard-steps {
+	display: flex;
+	list-style: none;
+	margin: 20px 0;
+	padding: 0;
+	gap: 4px;
+}
+
+.mcr-wizard-steps li {
+	flex: 1;
+	text-align: center;
+	padding: 8px 4px;
+	background: #f0f0f1;
+	color: #646970;
+	font-size: 12px;
+	border-radius: 4px;
+}
+
+.mcr-wizard-steps li.is-active {
+	background: #2271b1;
+	color: #fff;
+	font-weight: 600;
+}
+
+.mcr-wizard-steps li.is-done {
+	background: #d5f0db;
+	color: #1a7f37;
+}
+
+.mcr-wizard-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 28px;
+}
+
+.mcr-wizard-select {
+	min-width: 320px;
+}
+
+.mcr-wizard-actions {
+	margin-top: 24px;
+}
+
+.mcr-check-list {
+	list-style: none;
+	margin: 0 0 16px;
+	padding: 0;
+}
+
+.mcr-check-list li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.mcr-check-list li:last-child {
+	border-bottom: none;
+}
+
+.mcr-check-detail {
+	margin-left: auto;
+	color: #646970;
+	font-size: 12px;
+}
+
+.mcr-check-ok .dashicons {
+	color: #1a7f37;
+}
+
+.mcr-check-fail .dashicons {
+	color: #c62828;
+}
+
+/* Toast notifications */
+#mcr-toast-container {
+	position: fixed;
+	top: 40px;
+	right: 20px;
+	z-index: 100000;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.mcr-toast {
+	background: #1d2327;
+	color: #fff;
+	padding: 12px 18px;
+	border-radius: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	font-size: 13px;
+	max-width: 320px;
+	opacity: 0;
+	transform: translateY(-8px);
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.mcr-toast.is-visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.mcr-toast.mcr-toast-success {
+	background: #1a7f37;
+}
+
+.mcr-toast.mcr-toast-error {
+	background: #c62828;
+}
+
+/* Loading state for buttons (export / sync) */
+.mcr-is-loading {
+	position: relative;
+	pointer-events: none;
+	opacity: 0.7;
+}
+
+.mcr-is-loading::after {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-left: 8px;
+	border: 2px solid rgba(255, 255, 255, 0.6);
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: mcr-spin 0.6s linear infinite;
+	vertical-align: middle;
+}
+
+@keyframes mcr-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* Dark mode compatibility (follows OS/browser preference for wp-admin custom UI) */
+@media (prefers-color-scheme: dark) {
+	body.admin-color-fresh .mcr-wrap .mcr-stat-card,
+	body.admin-color-fresh .mcr-wrap .mcr-chart-card,
+	body.admin-color-fresh .mcr-wrap .mcr-wizard-card,
+	body.admin-color-fresh .mcr-wrap .mcr-export-panel,
+	body.admin-color-fresh .mcr-wrap .mcr-detail-main,
+	body.admin-color-fresh .mcr-wrap .mcr-detail-sidebar {
+		background: #1e1e1e;
+		border-color: #3c3c3c;
+		color: #e0e0e0;
+	}
+
+	body.admin-color-fresh .mcr-stat-value {
+		color: #f0f0f1;
+	}
+}
+
+/* Excel Online - client-facing UI */
+.mcr-ms-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 24px;
+	margin-bottom: 20px;
+	max-width: 640px;
+}
+
+.mcr-ms-card-connect {
+	text-align: left;
+}
+
+.mcr-ms-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 600;
+	margin: 12px 0;
+}
+
+.mcr-status-dot {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+}
+
+.mcr-status-dot-off {
+	background: #c62828;
+}
+
+.mcr-status-dot-on {
+	background: #1a7f37;
+}
+
+.mcr-ms-connect-btn {
+	margin: 12px 0;
+}
+
+.mcr-ms-select-form {
+	margin: 16px 0;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.mcr-ms-select-form:last-of-type {
+	border-bottom: none;
+}
+
+.mcr-ms-select {
+	min-width: 320px;
+	margin-top: 4px;
+}
+
+.mcr-mapping-table {
+	margin: 12px 0 20px;
+}
+
+.mcr-mapping-table th,
+.mcr-mapping-table td {
+	padding: 8px 12px;
+}
+
+.mcr-ms-actions {
+	margin-top: 16px;
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.mcr-ms-stats-card {
+	max-width: 320px;
+}
+
+.mcr-ms-stats-row {
+	display: flex;
+	gap: 24px;
+	margin: 12px 0;
+}
+
+.mcr-ms-stats-row div {
+	text-align: center;
+}
+
+.mcr-ms-stats-row strong {
+	display: block;
+	font-size: 22px;
+}
+
+.mcr-ms-stats-row span {
+	font-size: 12px;
+	color: #646970;
+	text-transform: uppercase;
+}
+
+.mcr-test-checklist {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+}
+
+.mcr-test-checklist li {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 0;
+	font-size: 13px;
+}
+
+.mcr-test-checklist .mcr-check-ok .dashicons {
+	color: #1a7f37;
+}
+
+.mcr-test-checklist .mcr-check-fail .dashicons {
+	color: #c62828;
+}
+
+.mcr-advanced-steps {
+	margin: 8px 0 0 20px;
+}
+
+.mcr-advanced-steps li {
+	margin-bottom: 6px;
+}
+
+/* Excel Sync column/badges (Registrations list + Detail page) */
+.mcr-excel-sync-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.mcr-excel-sync-badge .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.mcr-excel-sync-synced { color: #1a7f37; }
+.mcr-excel-sync-pending,
+.mcr-excel-sync-syncing { color: #9a6700; }
+.mcr-excel-sync-failed { color: #c62828; }
+.mcr-excel-sync-not_configured { color: #8c8f94; }
+
+.mcr-ms-dashboard-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 20px;
+	max-width: 420px;
+	margin: 20px 0;
+}
+
+.mcr-detail-section-title {
+	margin: 20px 0 4px;
+	padding-top: 12px;
+	border-top: 1px solid #f0f0f1;
+	font-size: 14px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #646970;
+}
+
+.mcr-detail-table tr:first-child .mcr-detail-section-title {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
+
+.mcr-interests-checklist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.mcr-interests-checklist li {
+	padding: 2px 0;
+	color: #1a7f37;
 }

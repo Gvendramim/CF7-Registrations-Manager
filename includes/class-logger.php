@@ -20,9 +20,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Logger {
 
-	const LEVEL_INFO    = 'info';
-	const LEVEL_WARNING = 'warning';
-	const LEVEL_ERROR   = 'error';
+	const LEVEL_INFO     = 'info';
+	const LEVEL_WARNING  = 'warning';
+	const LEVEL_ERROR    = 'error';
+	const LEVEL_CRITICAL = 'critical';
 
 	/**
 	 * Nome da tabela de logs (sem prefixo).
@@ -84,7 +85,7 @@ class Logger {
 	public static function log( $level, $context, $message, $user_id = 0 ) {
 		global $wpdb;
 
-		$allowed_levels = array( self::LEVEL_INFO, self::LEVEL_WARNING, self::LEVEL_ERROR );
+		$allowed_levels = array( self::LEVEL_INFO, self::LEVEL_WARNING, self::LEVEL_ERROR, self::LEVEL_CRITICAL );
 
 		if ( ! in_array( $level, $allowed_levels, true ) ) {
 			$level = self::LEVEL_INFO;
@@ -140,11 +141,25 @@ class Logger {
 	}
 
 	/**
+	 * Atalho para registrar uma entrada crítica (falhas graves que exigem
+	 * atenção imediata do administrador).
+	 *
+	 * @param string $context Contexto do evento.
+	 * @param string $message Mensagem descritiva.
+	 * @param int    $user_id ID do usuário, quando aplicável.
+	 * @return void
+	 */
+	public static function critical( $context, $message, $user_id = 0 ) {
+		self::log( self::LEVEL_CRITICAL, $context, $message, $user_id );
+	}
+
+	/**
 	 * Consulta paginada/filtrada de logs, utilizada pela tela administrativa.
 	 *
 	 * @param array $args {
 	 *     @type string $level    Filtrar por nível.
 	 *     @type string $context  Filtrar por contexto.
+	 *     @type string $search   Termo de busca na mensagem.
 	 *     @type int    $per_page Itens por página.
 	 *     @type int    $page     Página atual (1-indexed).
 	 * }
@@ -158,6 +173,7 @@ class Logger {
 		$defaults = array(
 			'level'    => '',
 			'context'  => '',
+			'search'   => '',
 			'per_page' => 20,
 			'page'     => 1,
 		);
@@ -175,6 +191,11 @@ class Logger {
 		if ( ! empty( $args['context'] ) ) {
 			$where[]  = 'context = %s';
 			$values[] = $args['context'];
+		}
+
+		if ( ! empty( $args['search'] ) ) {
+			$where[]  = 'message LIKE %s';
+			$values[] = '%' . $wpdb->esc_like( $args['search'] ) . '%';
 		}
 
 		$where_sql = implode( ' AND ', $where );
@@ -216,5 +237,34 @@ class Logger {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( "TRUNCATE TABLE {$table}" );
+	}
+
+	/**
+	 * Retorna a lista de contextos distintos já registrados, para popular
+	 * o filtro da tela de logs.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function get_distinct_contexts() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$contexts = $wpdb->get_col( "SELECT DISTINCT context FROM {$table} ORDER BY context ASC" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		return $contexts ?: array();
+	}
+
+	/**
+	 * Retorna todas as entradas de log que atendem aos filtros informados,
+	 * sem paginação - utilizado para a exportação/download de logs.
+	 *
+	 * @param array $args Mesmos filtros aceitos por query_logs() (level, context, search).
+	 * @return array
+	 */
+	public static function get_all_matching( array $args = array() ) {
+		$result = self::query_logs( wp_parse_args( $args, array( 'per_page' => 100000, 'page' => 1 ) ) );
+
+		return $result['items'];
 	}
 }

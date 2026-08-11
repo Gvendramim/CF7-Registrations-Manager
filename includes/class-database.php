@@ -65,14 +65,22 @@ class Database {
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			registration_number VARCHAR(20) NOT NULL DEFAULT '',
 			child_name VARCHAR(255) NOT NULL DEFAULT '',
+			child_age SMALLINT UNSIGNED NULL,
 			parent_name VARCHAR(255) NOT NULL DEFAULT '',
 			parent_email VARCHAR(255) NOT NULL DEFAULT '',
 			phone VARCHAR(50) NOT NULL DEFAULT '',
+			second_parent_email VARCHAR(255) NOT NULL DEFAULT '',
+			second_parent_phone VARCHAR(50) NOT NULL DEFAULT '',
 			child_class VARCHAR(100) NOT NULL DEFAULT '',
 			interests TEXT NULL,
 			additional_message TEXT NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			internal_notes LONGTEXT NULL,
+			excel_sync_status VARCHAR(20) NOT NULL DEFAULT 'not_configured',
+			excel_sync_attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			excel_last_sync_at DATETIME NULL,
+			excel_last_sync_error TEXT NULL,
+			excel_row_reference VARCHAR(100) NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
@@ -80,7 +88,8 @@ class Database {
 			KEY parent_email (parent_email),
 			KEY child_name (child_name),
 			KEY status (status),
-			KEY created_at (created_at)
+			KEY created_at (created_at),
+			KEY excel_sync_status (excel_sync_status)
 		) {$charset_collate};";
 
 		$sql_history = "CREATE TABLE {$history} (
@@ -166,9 +175,12 @@ class Database {
 
 		$defaults = array(
 			'child_name'          => '',
+			'child_age'           => null,
 			'parent_name'         => '',
 			'parent_email'        => '',
 			'phone'               => '',
+			'second_parent_email' => '',
+			'second_parent_phone' => '',
 			'child_class'         => '',
 			'interests'           => '',
 			'additional_message'  => '',
@@ -185,9 +197,12 @@ class Database {
 			array(
 				'registration_number' => '', // Preenchido logo após o insert, com base no ID gerado.
 				'child_name'           => $data['child_name'],
+				'child_age'            => $data['child_age'], // null quando não informado/inválido - nunca 0 ou string vazia.
 				'parent_name'          => $data['parent_name'],
 				'parent_email'         => $data['parent_email'],
 				'phone'                => $data['phone'],
+				'second_parent_email'  => $data['second_parent_email'],
+				'second_parent_phone'  => $data['second_parent_phone'],
 				'child_class'          => $data['child_class'],
 				'interests'            => $data['interests'],
 				'additional_message'   => $data['additional_message'],
@@ -196,7 +211,7 @@ class Database {
 				'created_at'           => $now,
 				'updated_at'           => $now,
 			),
-			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
@@ -362,6 +377,261 @@ class Database {
 	}
 
 	/**
+	 * -----------------------------------------------------------------------
+	 * Sincronização com o Excel Online (fila e status por registro)
+	 * -----------------------------------------------------------------------
+	 */
+
+	/**
+	 * Marca uma inscrição como pendente de sincronização com o Excel
+	 * Online, sem alterar o contador de tentativas.
+	 *
+	 * @param int $id ID da inscrição.
+	 * @return void
+	 */
+	public static function mark_sync_pending( $id ) {
+		global $wpdb;
+
+		$wpdb->update(
+			self::table_name(),
+			array( 'excel_sync_status' => 'pending' ),
+			array( 'id' => absint( $id ) ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Marca uma inscrição como "sincronizando no momento", evitando que a
+	 * mesma inscrição seja processada duas vezes em execuções concorrentes
+	 * da fila.
+	 *
+	 * @param int $id ID da inscrição.
+	 * @return void
+	 */
+	public static function mark_sync_syncing( $id ) {
+		global $wpdb;
+
+		$wpdb->update(
+			self::table_name(),
+			array( 'excel_sync_status' => 'syncing' ),
+			array( 'id' => absint( $id ) ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Marca uma inscrição como sincronizada com sucesso, registrando a
+	 * referência da linha criada no Excel (usada para evitar duplicidade
+	 * em novas tentativas).
+	 *
+	 * @param int    $id            ID da inscrição.
+	 * @param string $row_reference Referência da linha no Excel (ex: número da linha ou ID da tabela).
+	 * @return void
+	 */
+	public static function mark_sync_synced( $id, $row_reference = '' ) {
+		global $wpdb;
+
+		$wpdb->update(
+			self::table_name(),
+			array(
+				'excel_sync_status'     => 'synced',
+				'excel_last_sync_at'    => current_time( 'mysql' ),
+				'excel_last_sync_error' => '',
+				'excel_row_reference'   => $row_reference,
+			),
+			array( 'id' => absint( $id ) ),
+			array( '%s', '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Marca uma inscrição como falha na sincronização, incrementando o
+	 * contador de tentativas e registrando a mensagem de erro (nunca um
+	 * token ou segredo - apenas uma mensagem amigável/técnica do erro).
+	 *
+	 * @param int    $id      ID da inscrição.
+	 * @param string $message Mensagem de erro.
+	 * @return void
+	 */
+	public static function mark_sync_failed( $id, $message ) {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table}
+				SET excel_sync_status = 'failed',
+					excel_sync_attempts = excel_sync_attempts + 1,
+					excel_last_sync_at = %s,
+					excel_last_sync_error = %s
+				WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				current_time( 'mysql' ),
+				$message,
+				absint( $id )
+			)
+		);
+	}
+
+	/**
+	 * Reseta o status de sincronização de uma inscrição para "pending",
+	 * usado pelo botão "Sync Again" na tela de detalhes.
+	 *
+	 * @param int $id ID da inscrição.
+	 * @return void
+	 */
+	public static function reset_sync_status( $id ) {
+		global $wpdb;
+
+		$wpdb->update(
+			self::table_name(),
+			array(
+				'excel_sync_status'     => 'pending',
+				'excel_last_sync_error' => '',
+			),
+			array( 'id' => absint( $id ) ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Marca todas as inscrições configuradas para sincronização (ou seja,
+	 * que ainda não foram tentadas) com um status inicial "not_configured"
+	 * → "pending", usado quando a integração é conectada/ativada pela
+	 * primeira vez.
+	 *
+	 * @return void
+	 */
+	public static function mark_all_not_configured_as_pending() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$wpdb->query(
+			"UPDATE {$table} SET excel_sync_status = 'pending' WHERE excel_sync_status = 'not_configured'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		);
+	}
+
+	/**
+	 * Marca todas as inscrições ainda não sincronizadas (pendentes,
+	 * falhas ou nunca configuradas) como "pending", usado pela opção
+	 * "Sync All" do botão "Sync Now" para reprocessar todo o histórico
+	 * após a integração ser configurada.
+	 *
+	 * @return void
+	 */
+	public static function mark_unsynced_as_pending() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$wpdb->query(
+			"UPDATE {$table} SET excel_sync_status = 'pending' WHERE excel_sync_status != 'synced'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		);
+	}
+
+	/**
+	 * Retorna inscrições elegíveis para a fila de sincronização: as
+	 * pendentes, mais as que falharam e ainda não atingiram o número
+	 * máximo de tentativas (respeitando um pequeno backoff baseado no
+	 * número de tentativas já realizadas).
+	 *
+	 * @param int $limit       Número máximo de inscrições a retornar.
+	 * @param int $max_attempts Número máximo de tentativas antes de desistir automaticamente.
+	 * @return array
+	 */
+	public static function get_sync_queue_items( $limit = 20, $max_attempts = 5 ) {
+		global $wpdb;
+
+		$table = self::table_name();
+		$limit = max( 1, absint( $limit ) );
+
+		// Backoff simples: quanto mais tentativas, mais tempo esperamos
+		// antes de tentar de novo (1, 2, 4, 8, 16 minutos...).
+		$sql = $wpdb->prepare(
+			"SELECT * FROM {$table}
+			WHERE excel_sync_status = 'pending'
+			   OR (
+					excel_sync_status = 'failed'
+					AND excel_sync_attempts < %d
+					AND (
+						excel_last_sync_at IS NULL
+						OR excel_last_sync_at <= (NOW() - INTERVAL POW(2, excel_sync_attempts) MINUTE)
+					)
+			   )
+			ORDER BY created_at ASC
+			LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$max_attempts,
+			$limit
+		);
+
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+		return $rows ?: array();
+	}
+
+	/**
+	 * Retorna todas as inscrições com status de falha, ignorando o
+	 * backoff - usado pelo botão manual "Retry Failed Syncs".
+	 *
+	 * @param int $limit Número máximo de inscrições a retornar.
+	 * @return array
+	 */
+	public static function get_failed_sync_items( $limit = 100 ) {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE excel_sync_status = 'failed' ORDER BY created_at ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				max( 1, absint( $limit ) )
+			),
+			ARRAY_A
+		);
+
+		return $rows ?: array();
+	}
+
+	/**
+	 * Retorna os indicadores de sincronização usados no Dashboard e na
+	 * tela de Excel Integration: quantas inscrições estão pendentes,
+	 * sincronizadas ou com falha.
+	 *
+	 * @return array{pending:int,synced:int,failed:int,not_configured:int,last_sync_at:?string}
+	 */
+	public static function get_sync_stats() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$counts = array(
+			'pending'        => 0,
+			'synced'         => 0,
+			'failed'         => 0,
+			'not_configured' => 0,
+		);
+
+		$rows = $wpdb->get_results( "SELECT excel_sync_status, COUNT(*) AS total FROM {$table} GROUP BY excel_sync_status", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		foreach ( $rows ?: array() as $row ) {
+			if ( isset( $counts[ $row['excel_sync_status'] ] ) ) {
+				$counts[ $row['excel_sync_status'] ] = (int) $row['total'];
+			}
+		}
+
+		$last_sync_at = $wpdb->get_var( "SELECT MAX(excel_last_sync_at) FROM {$table} WHERE excel_sync_status = 'synced'" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$counts['last_sync_at'] = $last_sync_at ?: null;
+
+		return $counts;
+	}
+
+	/**
 	 * Registra uma entrada no histórico de alterações de uma inscrição.
 	 *
 	 * @param int    $registration_id ID da inscrição.
@@ -453,7 +723,9 @@ class Database {
 
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR registration_number LIKE %s)';
+			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR second_parent_email LIKE %s OR second_parent_phone LIKE %s OR registration_number LIKE %s)';
+			$values[] = $like;
+			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
@@ -519,7 +791,9 @@ class Database {
 
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR registration_number LIKE %s)';
+			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR second_parent_email LIKE %s OR second_parent_phone LIKE %s OR registration_number LIKE %s)';
+			$values[] = $like;
+			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
@@ -645,6 +919,130 @@ class Database {
 			$series[]        = array(
 				'date'  => $date,
 				'count' => $counts[ $date ] ?? 0,
+			);
+		}
+
+		return $series;
+	}
+
+	/**
+	 * Retorna o número de inscrições por turma/classe, ordenado do maior
+	 * para o menor, para alimentar o gráfico "Inscrições por Turma" do
+	 * dashboard. Usa uma consulta agregada e indexada (coluna child_class),
+	 * evitando carregar todos os registros em memória.
+	 *
+	 * @param int $limit Número máximo de turmas a retornar (padrão: 10).
+	 * @return array<int,array{class:string,count:int}>
+	 */
+	public static function get_registrations_by_class( $limit = 10 ) {
+		global $wpdb;
+
+		$table = self::table_name();
+		$limit = max( 1, absint( $limit ) );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT
+					CASE WHEN child_class = '' THEN %s ELSE child_class END AS class_label,
+					COUNT(*) AS reg_count
+				FROM {$table}
+				GROUP BY class_label
+				ORDER BY reg_count DESC
+				LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				__( 'Not specified', 'music-club-registrations' ),
+				$limit
+			),
+			ARRAY_A
+		);
+
+		$result = array();
+		foreach ( $rows ?: array() as $row ) {
+			$result[] = array(
+				'class' => $row['class_label'],
+				'count' => (int) $row['reg_count'],
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Retorna o número de inscrições por programa/interesse selecionado,
+	 * para o gráfico "Registrations by Program" do dashboard. Como uma
+	 * mesma inscrição pode selecionar vários programas (campo
+	 * `interests`, armazenado como texto separado por vírgulas), a
+	 * contagem é feita em PHP após ler os valores já persistidos - não é
+	 * possível agrupar corretamente por SQL puro em um campo
+	 * multivalorado.
+	 *
+	 * @param int $limit Número máximo de programas a retornar (padrão: 10).
+	 * @return array<int,array{interest:string,count:int}>
+	 */
+	public static function get_registrations_by_interest( $limit = 10 ) {
+		global $wpdb;
+
+		$table = self::table_name();
+		$limit = max( 1, absint( $limit ) );
+
+		$values = $wpdb->get_col( "SELECT interests FROM {$table} WHERE interests != ''" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$counts = array();
+		foreach ( $values ?: array() as $interests_string ) {
+			foreach ( mcr_interests_to_array( $interests_string ) as $interest ) {
+				$counts[ $interest ] = ( $counts[ $interest ] ?? 0 ) + 1;
+			}
+		}
+
+		arsort( $counts );
+		$counts = array_slice( $counts, 0, $limit, true );
+
+		$result = array();
+		foreach ( $counts as $interest => $count ) {
+			$result[] = array(
+				'interest' => $interest,
+				'count'    => $count,
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Retorna o número de inscrições por mês, nos últimos N meses, para o
+	 * gráfico "Inscrições por Mês" do dashboard.
+	 *
+	 * @param int $months Número de meses a considerar (padrão: 12).
+	 * @return array<int,array{month:string,count:int}>
+	 */
+	public static function get_registrations_per_month( $months = 12 ) {
+		global $wpdb;
+
+		$table  = self::table_name();
+		$months = max( 1, absint( $months ) );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE_FORMAT(created_at, '%%Y-%%m') AS reg_month, COUNT(*) AS reg_count
+				FROM {$table}
+				WHERE created_at >= (CURDATE() - INTERVAL %d MONTH)
+				GROUP BY reg_month
+				ORDER BY reg_month ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$months
+			),
+			ARRAY_A
+		);
+
+		$counts = array();
+		foreach ( $rows ?: array() as $row ) {
+			$counts[ $row['reg_month'] ] = (int) $row['reg_count'];
+		}
+
+		$series = array();
+		for ( $i = $months - 1; $i >= 0; $i-- ) {
+			$month      = gmdate( 'Y-m', strtotime( "-{$i} months" ) );
+			$series[]   = array(
+				'month' => $month,
+				'count' => $counts[ $month ] ?? 0,
 			);
 		}
 

@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $statuses = mcr_get_statuses();
 ?>
 <div class="wrap mcr-wrap mcr-dashboard-wrap">
-	<h1><?php esc_html_e( 'Music Club Dashboard', 'music-club-registrations' ); ?></h1>
+	<h1><?php esc_html_e( 'CF7 Registrations Manager — Dashboard', 'music-club-registrations' ); ?></h1>
 
 	<p class="description">
 		<?php
@@ -70,6 +70,51 @@ $statuses = mcr_get_statuses();
 			<h2><?php esc_html_e( 'Status Distribution', 'music-club-registrations' ); ?></h2>
 			<canvas id="mcr-status-chart" height="110"></canvas>
 		</div>
+		<div class="mcr-chart-card">
+			<h2><?php esc_html_e( 'Registrations by Month', 'music-club-registrations' ); ?></h2>
+			<canvas id="mcr-monthly-chart" height="110"></canvas>
+		</div>
+		<div class="mcr-chart-card">
+			<h2><?php esc_html_e( 'Registrations by Class', 'music-club-registrations' ); ?></h2>
+			<canvas id="mcr-class-chart" height="110"></canvas>
+		</div>
+		<div class="mcr-chart-card">
+			<h2><?php esc_html_e( 'Registrations by Program', 'music-club-registrations' ); ?></h2>
+			<canvas id="mcr-interest-chart" height="110"></canvas>
+		</div>
+	</div>
+
+	<div class="mcr-ms-dashboard-card">
+		<h2><?php esc_html_e( 'Excel Online', 'music-club-registrations' ); ?></h2>
+		<p class="mcr-ms-status">
+			<span class="mcr-status-dot <?php echo $excel_connected ? 'mcr-status-dot-on' : 'mcr-status-dot-off'; ?>"></span>
+			<?php echo $excel_connected ? esc_html__( 'Connected', 'music-club-registrations' ) : esc_html__( 'Not Connected', 'music-club-registrations' ); ?>
+		</p>
+		<div class="mcr-ms-stats-row">
+			<div><strong><?php echo (int) $excel_sync_stats['synced']; ?></strong><span><?php esc_html_e( 'Synced', 'music-club-registrations' ); ?></span></div>
+			<div><strong><?php echo (int) $excel_sync_stats['pending']; ?></strong><span><?php esc_html_e( 'Pending', 'music-club-registrations' ); ?></span></div>
+			<div><strong><?php echo (int) $excel_sync_stats['failed']; ?></strong><span><?php esc_html_e( 'Failed', 'music-club-registrations' ); ?></span></div>
+		</div>
+		<?php if ( ! empty( $excel_sync_stats['last_sync_at'] ) ) : ?>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: %s: date/time of the last successful sync */
+					esc_html__( 'Last Sync: %s', 'music-club-registrations' ),
+					esc_html( mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $excel_sync_stats['last_sync_at'] ) )
+				);
+				?>
+			</p>
+		<?php endif; ?>
+		<p>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . \Music_Club_Registrations\Admin::SETTINGS_SLUG . '&tab=excel' ) ); ?>">
+				<?php echo $excel_connected ? esc_html__( 'Manage Excel Online', 'music-club-registrations' ) : esc_html__( 'Connect Microsoft 365', 'music-club-registrations' ); ?>
+			</a>
+			&nbsp;·&nbsp;
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . \Music_Club_Registrations\Admin::LOGS_SLUG . '&context=excel_online' ) ); ?>">
+				<?php esc_html_e( 'View Sync Logs', 'music-club-registrations' ); ?>
+			</a>
+		</p>
 	</div>
 
 	<p>

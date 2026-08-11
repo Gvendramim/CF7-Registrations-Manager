@@ -1,66 +1,94 @@
-Tags: contact form 7, registrations, forms, database, export, dashboard, rest api
-Requires PHP: 8.1
+=== CF7 Registrations Manager ===
+Contributors: Gabriel Vendramim Ferreira
+Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel
+License: GPLv2 or later
 
-Captura e gerencia automaticamente as inscrições enviadas por qualquer formulário do Contact Form 7 escolhido pelo administrador — sem nenhum ID de formulário ou nome de campo fixo no código.
+Plug-and-play: install, activate, and a guided Setup Wizard configures everything. Captures registrations from any Contact Form 7 form, with a dashboard, native CSV/Excel export, a REST API, and optional Excel Online sync — zero Composer, zero terminal, zero code edits.
 
 == Description ==
 
-CF7 Registrations Manager é um plugin totalmente reutilizável: através da tela de Settings, o administrador escolhe qual formulário do Contact Form 7 deve ser monitorado e mapeia os campos desse formulário para os slots internos do plugin (Nome do aluno, Nome do responsável, Email, Telefone, Turma, Programa e Mensagem). Nenhum ID de formulário ou nome de campo permanece fixo no código-fonte, o que torna o plugin adequado para qualquer projeto ou cliente, bastando reconfigurar a tela de Settings.
+CF7 Registrations Manager is a production-ready, self-contained plugin. Every dependency (including Excel/.xlsx generation) is bundled natively — there is nothing to install via Composer, SSH, or the command line.
 
-Principais recursos:
+**Setup Wizard** — launches automatically on first activation and walks the administrator through: environment check (PHP/WordPress/Contact Form 7/permissions), form selection, automatic field mapping, database setup, API key generation, and a final system test.
 
-* **Formulário e campos 100% configuráveis** — selecione qualquer formulário do Contact Form 7 e mapeie seus campos pela tela de Settings.
-* **Dashboard** com indicadores (total, hoje, semana, mês, por status) e gráficos Chart.js (linha do tempo e distribuição por status).
-* **Captura automática e segura** dos envios do formulário configurado, com sanitização e validação completas.
-* **Detecção de duplicidade** configurável (ativar/desativar e intervalo em minutos).
-* **Numeração sequencial automática** (MC-000001, MC-000002, ...).
-* **Painel administrativo** com listagem (WP_List_Table), busca, filtros, ordenação e ações em massa.
-* **Tela de detalhes** com histórico completo de alterações, status e observações internas (nunca exibidas no frontend).
-* **Sistema de logs interno** (erros de banco, falhas de API, exportações, alterações de status, erros inesperados) com tela de consulta e limpeza.
-* **Exportação para CSV e Excel (.xlsx)** com seleção de colunas e escopo (Todos / Filtrados / Selecionados).
-* **API REST própria** (`/wp-json/cf7-registrations/v1/...`), registrada automaticamente na inicialização do plugin, protegida por chave de API (gerada automaticamente) ou autenticação padrão do WordPress.
-* Totalmente internacionalizado (i18n) e seguindo os padrões de codificação do WordPress.
+**100% configurable, no code required** — select any Contact Form 7 form and map its fields from the Settings screen. No form ID or field name is ever hard-coded.
+
+**Dashboard** — KPI cards (total, today, this week, this month, and per-status counts) plus four Chart.js graphs: registrations over time, status distribution, registrations by month, and registrations by class.
+
+**Native CSV & Excel export** — CSV uses UTF-8 BOM and an automatically detected delimiter (`;` for locales like pt_BR, de_DE, fr_FR; `,` for en_US), so it always opens correctly in Excel Windows, Excel Online, and LibreOffice. Excel (.xlsx) files are generated with a dependency-free native writer (uses PHP's built-in ZipArchive extension) — no library installation, ever. If ZipArchive is unavailable on a host, the plugin shows a friendly notice and CSV export keeps working; it never throws a fatal error.
+
+**Excel Online integration** — connect via the Microsoft Graph API (Tenant ID, Client ID, Client Secret, Workbook, Worksheet, Table) with a one-click "Test Connection" button. Once connected, every new registration is pushed to the configured table automatically.
+
+**REST API** — auto-registered at `cf7-registrations/v1`, with `GET registrations`, `GET registration/{id}`, `POST registration/status`, `DELETE registration/{id}`, `GET export.csv` and `GET export.xlsx`. Authenticate with a simple API key (auto-generated) via header or query parameter — ideal for Excel, Power BI, or other external tools. Includes built-in rate limiting.
+
+**Logs** — Info / Warning / Error / Critical levels, with search, context filters, CSV download, and one-click clearing.
+
+**Backup & Restore** — export settings only, or a full backup (settings + all registrations) as JSON; import/restore from the Settings screen, with duplicate-safe registration restoration.
+
+**Versioned migrations** — internal database versioning so future updates can evolve the schema safely and automatically.
+
+**Modern UI** — cards, Dashicons, toast notifications, loading indicators during export/sync, confirmation prompts before destructive actions, contextual help on every screen, and dark-mode-aware styling.
 
 == Installation ==
 
-1. Envie a pasta `music-club-registrations` para o diretório `/wp-content/plugins/`.
-2. Ative o plugin através do menu "Plugins" no WordPress.
-3. Certifique-se de que o Contact Form 7 esteja instalado e ativo.
-4. Acesse "Music Club" > "Settings" e selecione o formulário do Contact Form 7 que deseja monitorar. Clique em "Load Fields" e mapeie cada campo do seu formulário para os slots internos do plugin.
-5. (Opcional) Para habilitar a exportação em Excel (.xlsx), execute `composer install` dentro da pasta do plugin para instalar a biblioteca PhpSpreadsheet. Sem essa etapa, a exportação em CSV continua funcionando normalmente.
-6. Acompanhe as inscrições em "Music Club" > "Dashboard" e "Music Club" > "Registrations".
+1. Upload the `music-club-registrations` folder to `/wp-content/plugins/`.
+2. Activate the plugin from the "Plugins" menu.
+3. The Setup Wizard opens automatically — follow the six steps (environment check, form selection, field mapping, database setup, API key, final test).
+4. That's it. No Composer, no terminal, no manual library installation.
 
 == Frequently Asked Questions ==
 
-= O plugin funciona com qualquer formulário do Contact Form 7? =
+= Do I need to run Composer or install any library? =
 
-Sim. Nenhum ID de formulário fica fixo no código — o formulário monitorado é escolhido na tela de Settings, e o plugin permanece inativo até que um formulário seja selecionado.
+No. Every feature, including Excel (.xlsx) export, works immediately after activation using code bundled with the plugin.
 
-= Como funciona o mapeamento de campos? =
+= Does the plugin work with any Contact Form 7 form? =
 
-Na tela de Settings, após selecionar o formulário e clicar em "Load Fields", o plugin lista automaticamente os campos existentes nesse formulário. Basta escolher, para cada slot interno (Nome do aluno, Responsável, Email, etc.), qual campo do seu formulário corresponde a ele.
+Yes. No form ID or field name is hard-coded — you choose the form and map its fields from the Settings screen (or the Setup Wizard on first activation).
 
-= Onde os dados são armazenados? =
+= What happens if Excel export isn't available on my server? =
 
-Em uma tabela própria (`wp_music_club_registrations`), criada automaticamente na ativação do plugin via `dbDelta()`.
+The plugin checks for the PHP ZipArchive extension (present on the vast majority of hosts). If it's missing, you'll see a friendly notice instead of an error, and CSV export continues to work normally.
 
-= A API REST exige configuração manual? =
+= Is the REST API secured? =
 
-Não. Os endpoints são registrados automaticamente assim que o plugin é ativado. Uma chave de API também é gerada automaticamente e pode ser consultada ou regenerada na tela de Settings.
+Yes. Every endpoint requires a valid API key (sent as a header or query parameter) or an authenticated WordPress session with the right permissions, and requests are rate-limited.
 
-= Os dados são apagados se eu desinstalar o plugin? =
+= Are my registrations deleted if I uninstall the plugin? =
 
-Por padrão, não. A remoção só ocorre se a opção "Remove Data" for explicitamente habilitada na tela de Settings.
+Only if you explicitly enable "Remove Data" on the Settings screen. By default, all data is preserved.
 
 == Changelog ==
 
-= 2.0.0 =
-* Remoção de qualquer ID de formulário ou nome de campo fixo no código.
-* Nova tela de Settings: formulário monitorado, mapeamento de campos, status padrão, regras de duplicidade, chave de API, remoção de dados e ativação da exportação em Excel.
-* Novo Dashboard com indicadores e gráficos Chart.js.
-* Novo sistema interno de logs, com tela de consulta e limpeza.
-* Exportação CSV/Excel agora permite selecionar colunas.
-* API REST reescrita sob o namespace `cf7-registrations/v1`, com autenticação por chave de API.
+= 1.0.0 =
+* Added support for new registration fields: Child's Age, Additional Email, and Additional Phone — tracked end-to-end through capture, database, REST API, CSV/XLSX export, Excel Online sync, Dashboard, Registrations list, and the detail screen.
+* Safe, additive, idempotent database migration for the new columns; existing registrations and forms without these fields keep working unchanged.
+* Child's Age is validated (3–13) and exported as a real Excel number; invalid or missing values degrade gracefully to empty, never a fatal error.
+* Excel Online automatic column mapping now recognizes the new fields by name.
+* Interests/programs (multi-select, including time slots) are always preserved in full and joined with "; " for CSV/XLSX/Excel Online — never truncated to a single option.
+* Required-field validation no longer assumes every monitored form has a "parent name" field, so newer forms without it are no longer incorrectly rejected.
+* New "Registrations by Program" Dashboard chart.
+
+= 1.1.0 =
+* Real-time Excel Online sync via Microsoft Graph OAuth 2.0 (Authorization Code Flow) — clients just click "Connect Microsoft 365", no Tenant ID/Client ID/Client Secret/technical IDs required.
+* Automatic workbook/worksheet/table discovery and selection, with automatic column-to-field mapping.
+* Background sync queue with automatic retry, exponential backoff, and duplicate prevention.
+* New "Advanced > Microsoft Integration" screen for the one-time developer setup (Entra App Registration).
+* Excel Sync status column on the Registrations list and a full sync panel on the registration detail screen, with "Sync Again".
+* Dashboard card for Excel Online status, pending/synced/failed counts, and last sync time.
+* Database migration: added sync-tracking columns to the registrations table (safe, additive, idempotent).
+
+= 1.2.0 =
+* Setup Wizard for a fully guided, zero-configuration first run.
+* Native, dependency-free .xlsx export (no Composer/PhpSpreadsheet required).
+* CSV export rewritten with UTF-8 BOM and automatic delimiter detection.
+* Expanded Dashboard with monthly and by-class charts.
+* Microsoft Excel Online integration via the Microsoft Graph API.
+* REST API expanded (DELETE, export.csv, export.xlsx) with rate limiting.
+* Logs: Critical level, search, context filters, CSV download.
+* Backup and restore (settings-only or full data) as downloadable JSON.
+* Internal database versioning and automatic migrations.
+* UI polish: toast notifications, loading states, contextual help, dark-mode-aware styling.
 
 = 1.0.0 =
-* Versão inicial do plugin.
+* Initial release.

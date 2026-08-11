@@ -14,7 +14,8 @@
  * @package Music_Club_Registrations
  */
 
-
+// Garante que este arquivo só seja executado pelo próprio WordPress durante
+// o processo oficial de desinstalação de plugins.
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
@@ -35,6 +36,7 @@ function mcr_should_remove_data_on_uninstall() {
 		return true;
 	}
 
+	// Compatibilidade com a opção legada usada em versões anteriores.
 	return '1' === get_option( 'mcr_remove_data_on_uninstall', '0' );
 }
 
@@ -48,10 +50,20 @@ $table       = $wpdb->prefix . 'music_club_registrations';
 $history     = $wpdb->prefix . 'music_club_registration_history';
 $logs_table  = $wpdb->prefix . 'music_club_logs';
 
+// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
 $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
 $wpdb->query( "DROP TABLE IF EXISTS {$history}" );
+// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
 $wpdb->query( "DROP TABLE IF EXISTS {$logs_table}" );
 
 delete_option( 'mcr_db_version' );
 delete_option( 'mcr_settings' );
 delete_option( 'mcr_remove_data_on_uninstall' );
+delete_option( 'mcr_excel_connection' );
+
+$next_sync_cron = wp_next_scheduled( 'mcr_process_excel_sync_queue' );
+if ( $next_sync_cron ) {
+	wp_unschedule_event( $next_sync_cron, 'mcr_process_excel_sync_queue' );
+}
+wp_clear_scheduled_hook( 'mcr_process_single_excel_sync' );

@@ -149,24 +149,73 @@ class Form_Handler {
 		$map = Settings::get_field_map();
 
 		$child_name          = $this->extract_text_field( $posted_data, $map['child_name'] );
+		$child_age            = $this->extract_age_field( $posted_data, $map['child_age'] );
 		$parent_name         = $this->extract_text_field( $posted_data, $map['parent_name'] );
 		$parent_email        = $this->extract_email_field( $posted_data, $map['parent_email'] );
 		$phone               = $this->extract_phone_field( $posted_data, $map['phone'] );
+		$second_parent_email = $this->extract_email_field( $posted_data, $map['second_parent_email'] );
+		$second_parent_phone = $this->extract_phone_field( $posted_data, $map['second_parent_phone'] );
 		$child_class         = $this->extract_text_field( $posted_data, $map['child_class'] );
 		$interests           = $this->extract_multi_field( $posted_data, $map['interests'] );
 		$additional_message  = $this->extract_textarea_field( $posted_data, $map['additional_message'] );
 
 		return array(
 			'child_name'          => $child_name,
+			'child_age'           => $child_age,
 			'parent_name'         => $parent_name,
 			'parent_email'        => $parent_email,
 			'phone'               => $phone,
+			'second_parent_email' => $second_parent_email,
+			'second_parent_phone' => $second_parent_phone,
 			'child_class'         => $child_class,
 			'interests'           => $interests,
 			'additional_message'  => $additional_message,
 			'status'              => Settings::get( 'default_status', 'new' ),
 			'internal_notes'      => '',
 		);
+	}
+
+	/**
+	 * Extrai e valida um campo de idade a partir do nome de campo mapeado.
+	 *
+	 * Aceita apenas números inteiros entre 3 e 13 (faixa etária do
+	 * formulário). Qualquer valor ausente, vazio, não numérico ou fora da
+	 * faixa é tratado como "não informado" (null), nunca gera erro fatal
+	 * e nunca impede o restante da inscrição de ser salva.
+	 *
+	 * @param array  $posted_data Dados brutos do CF7.
+	 * @param string $field_name  Nome do campo mapeado (pode estar vazio).
+	 * @return int|null
+	 */
+	private function extract_age_field( array $posted_data, $field_name ) {
+		if ( empty( $field_name ) || ! isset( $posted_data[ $field_name ] ) ) {
+			return null;
+		}
+
+		$value = $posted_data[ $field_name ];
+
+		if ( is_array( $value ) ) {
+			$value = reset( $value );
+		}
+
+		$value = trim( (string) $value );
+
+		if ( '' === $value || ! is_numeric( $value ) ) {
+			return null;
+		}
+
+		$age = (int) $value;
+
+		if ( $age < 3 || $age > 13 ) {
+			// Fora da faixa esperada pelo formulário: registramos de forma
+			// informativa (não é um erro) e seguimos sem a idade, em vez
+			// de rejeitar a inscrição inteira por causa de um único campo.
+			Logger::info( 'form', sprintf( 'Child age "%s" is outside the expected 3-13 range and was not stored.', $value ) );
+
+			return null;
+		}
+
+		return $age;
 	}
 
 	/**
@@ -279,11 +328,25 @@ class Form_Handler {
 	 * @return bool
 	 */
 	private function validate_required_fields( array $data ) {
-		if ( empty( $data['child_name'] ) || empty( $data['parent_name'] ) ) {
+		// child_name e parent_email são os únicos campos verdadeiramente
+		// universais entre formulários antigos e novos (são inclusive a
+		// base da detecção de duplicidade), então são sempre exigidos.
+		if ( empty( $data['child_name'] ) ) {
 			return false;
 		}
 
 		if ( empty( $data['parent_email'] ) || ! is_email( $data['parent_email'] ) ) {
+			return false;
+		}
+
+		// parent_name (nome do responsável) só é exigido quando o
+		// administrador efetivamente mapeou esse campo para o formulário
+		// monitorado - formulários mais novos podem não possuir esse
+		// campo (ex: apenas "Primary Email"/"Primary Phone"), e isso não
+		// deve impedir o restante da inscrição de ser salvo.
+		$map = Settings::get_field_map();
+
+		if ( ! empty( $map['parent_name'] ) && empty( $data['parent_name'] ) ) {
 			return false;
 		}
 

@@ -46,13 +46,13 @@ class List_Table extends \WP_List_Table {
 			'cb'                   => '<input type="checkbox" />',
 			'registration_number' => __( 'Registration Number', 'music-club-registrations' ),
 			'child_name'           => __( 'Child', 'music-club-registrations' ),
-			'parent_name'          => __( 'Parent', 'music-club-registrations' ),
-			'parent_email'         => __( 'Email', 'music-club-registrations' ),
-			'phone'                => __( 'Phone', 'music-club-registrations' ),
-			'child_class'          => __( 'Class', 'music-club-registrations' ),
+			'child_age'            => __( 'Age', 'music-club-registrations' ),
+			'parent_email'         => __( 'Primary Email', 'music-club-registrations' ),
+			'phone'                => __( 'Primary Phone', 'music-club-registrations' ),
 			'interests'            => __( 'Interests', 'music-club-registrations' ),
 			'created_at'           => __( 'Date', 'music-club-registrations' ),
 			'status'               => __( 'Status', 'music-club-registrations' ),
+			'excel_sync_status'    => __( 'Excel Sync', 'music-club-registrations' ),
 		);
 	}
 
@@ -65,9 +65,8 @@ class List_Table extends \WP_List_Table {
 		return array(
 			'registration_number' => array( 'registration_number', false ),
 			'child_name'           => array( 'child_name', false ),
-			'parent_name'          => array( 'parent_name', false ),
+			'child_age'            => array( 'child_age', false ),
 			'parent_email'         => array( 'parent_email', false ),
-			'child_class'          => array( 'child_class', false ),
 			'created_at'           => array( 'created_at', true ),
 			'status'               => array( 'status', false ),
 		);
@@ -176,13 +175,16 @@ class List_Table extends \WP_List_Table {
 	}
 
 	/**
-	 * Renderiza a coluna de responsável, combinando nome do responsável.
+	 * Renderiza a coluna de idade da criança, com um traço quando não
+	 * informada (formulários antigos não possuem este campo).
 	 *
 	 * @param array $item Linha atual.
 	 * @return string
 	 */
-	protected function column_parent_name( $item ) {
-		return esc_html( $item['parent_name'] );
+	protected function column_child_age( $item ) {
+		$age = $item['child_age'] ?? null;
+
+		return ( null === $age || '' === (string) $age ) ? '&mdash;' : esc_html( $age );
 	}
 
 	/**
@@ -198,7 +200,7 @@ class List_Table extends \WP_List_Table {
 			return '&mdash;';
 		}
 
-		return esc_html( implode( ', ', $interests ) );
+		return esc_html( implode( '; ', $interests ) );
 	}
 
 	/**
@@ -215,6 +217,16 @@ class List_Table extends \WP_List_Table {
 			esc_attr( mcr_get_status_css_class( $status ) ),
 			esc_html( mcr_get_status_label( $status ) )
 		);
+	}
+
+	/**
+	 * Renderiza a coluna de status de sincronização com o Excel Online.
+	 *
+	 * @param array $item Linha atual.
+	 * @return string
+	 */
+	protected function column_excel_sync_status( $item ) {
+		return mcr_render_excel_sync_badge( $item['excel_sync_status'] ?? 'not_configured' );
 	}
 
 	/**
