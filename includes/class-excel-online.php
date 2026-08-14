@@ -71,6 +71,7 @@ class Excel_Online {
 			'child_name'           => array( 'studentname', 'student', 'childname', 'child', 'name' ),
 			'child_age'            => array( 'age', 'childage', 'studentage' ),
 			'parent_name'          => array( 'parentname', 'parent', 'guardianname', 'guardian', 'parentguardian' ),
+			'second_parent_name'   => array( 'additionalparentname', 'secondparentname', 'parent2name', 'guardianname2', 'additionalguardian', 'secondguardian' ),
 			'parent_email'         => array( 'email', 'parentemail', 'emailaddress', 'primaryemail' ),
 			'phone'                => array( 'phone', 'phonenumber', 'telephone', 'mobile', 'primaryphone' ),
 			'second_parent_email'  => array( 'additionalemail', 'secondemail', 'secondparentemail', 'parent2email', 'alternateemail' ),

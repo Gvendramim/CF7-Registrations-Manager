@@ -533,6 +533,7 @@ class REST_API {
 			'child_name'           => $registration['child_name'],
 			'child_age'            => isset( $registration['child_age'] ) && '' !== $registration['child_age'] ? (int) $registration['child_age'] : null,
 			'parent_name'          => $registration['parent_name'],
+			'second_parent_name'   => $registration['second_parent_name'] ?? '',
 			'parent_email'         => $registration['parent_email'],
 			'phone'                => $registration['phone'],
 			'second_parent_email'  => $registration['second_parent_email'] ?? '',

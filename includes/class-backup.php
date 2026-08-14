@@ -161,6 +161,7 @@ class Backup {
 					'child_name'           => sanitize_text_field( $item['child_name'] ?? '' ),
 					'child_age'            => ( isset( $item['child_age'] ) && is_numeric( $item['child_age'] ) ) ? absint( $item['child_age'] ) : null,
 					'parent_name'          => sanitize_text_field( $item['parent_name'] ?? '' ),
+					'second_parent_name'   => sanitize_text_field( $item['second_parent_name'] ?? '' ),
 					'parent_email'         => sanitize_email( $item['parent_email'] ?? '' ),
 					'phone'                => mcr_sanitize_phone( $item['phone'] ?? '' ),
 					'second_parent_email'  => sanitize_email( $item['second_parent_email'] ?? '' ),
@@ -173,7 +174,7 @@ class Backup {
 					'created_at'           => ! empty( $item['created_at'] ) ? $item['created_at'] : current_time( 'mysql' ),
 					'updated_at'           => current_time( 'mysql' ),
 				),
-				array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+				array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 			);
 
 			++$restored;

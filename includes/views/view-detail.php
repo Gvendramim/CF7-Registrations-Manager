@@ -94,6 +94,12 @@ $delete_url    = wp_nonce_url(
 								<td><?php echo esc_html( $registration['parent_name'] ); ?></td>
 							</tr>
 						<?php endif; ?>
+						<?php if ( ! empty( $registration['second_parent_name'] ?? '' ) ) : ?>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Parent/Guardian Name (Additional)', 'music-club-registrations' ); ?></th>
+								<td><?php echo esc_html( $registration['second_parent_name'] ); ?></td>
+							</tr>
+						<?php endif; ?>
 						<tr>
 							<th scope="row"><?php esc_html_e( 'Primary Email', 'music-club-registrations' ); ?></th>
 							<td><a href="mailto:<?php echo esc_attr( $registration['parent_email'] ); ?>"><?php echo esc_html( $registration['parent_email'] ); ?></a></td>

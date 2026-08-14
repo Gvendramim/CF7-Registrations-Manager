@@ -98,6 +98,7 @@ class Export {
 			'child_name'           => __( "Child's Name", 'music-club-registrations' ),
 			'child_age'            => __( "Child's Age", 'music-club-registrations' ),
 			'parent_name'          => __( 'Parent/Guardian', 'music-club-registrations' ),
+			'second_parent_name'   => __( 'Parent/Guardian (Additional)', 'music-club-registrations' ),
 			'parent_email'         => __( 'Primary Email', 'music-club-registrations' ),
 			'phone'                => __( 'Primary Phone', 'music-club-registrations' ),
 			'second_parent_email'  => __( 'Additional Email', 'music-club-registrations' ),

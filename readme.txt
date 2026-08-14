@@ -1,7 +1,5 @@
 === CF7 Registrations Manager ===
-Contributors: Gabriel Vendramim Ferreira
 Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel
-License: GPLv2 or later
 
 Plug-and-play: install, activate, and a guided Setup Wizard configures everything. Captures registrations from any Contact Form 7 form, with a dashboard, native CSV/Excel export, a REST API, and optional Excel Online sync — zero Composer, zero terminal, zero code edits.
 
@@ -60,7 +58,11 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 
 == Changelog ==
 
-= 1.0.0 =
+= 2.3.0 =
+* Added support for a new optional field: Parent/Guardian Name (Additional) (`second-parent-name`) — tracked through capture, database, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, and the registration detail screen.
+* Safe, additive, idempotent database migration for the new column; fully backward-compatible with existing registrations and forms that don't have this field.
+
+= 2.2.0 =
 * Added support for new registration fields: Child's Age, Additional Email, and Additional Phone — tracked end-to-end through capture, database, REST API, CSV/XLSX export, Excel Online sync, Dashboard, Registrations list, and the detail screen.
 * Safe, additive, idempotent database migration for the new columns; existing registrations and forms without these fields keep working unchanged.
 * Child's Age is validated (3–13) and exported as a real Excel number; invalid or missing values degrade gracefully to empty, never a fatal error.
@@ -69,7 +71,7 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 * Required-field validation no longer assumes every monitored form has a "parent name" field, so newer forms without it are no longer incorrectly rejected.
 * New "Registrations by Program" Dashboard chart.
 
-= 1.1.0 =
+= 2.1.0 =
 * Real-time Excel Online sync via Microsoft Graph OAuth 2.0 (Authorization Code Flow) — clients just click "Connect Microsoft 365", no Tenant ID/Client ID/Client Secret/technical IDs required.
 * Automatic workbook/worksheet/table discovery and selection, with automatic column-to-field mapping.
 * Background sync queue with automatic retry, exponential backoff, and duplicate prevention.
@@ -78,7 +80,7 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 * Dashboard card for Excel Online status, pending/synced/failed counts, and last sync time.
 * Database migration: added sync-tracking columns to the registrations table (safe, additive, idempotent).
 
-= 1.2.0 =
+= 2.0.0 =
 * Setup Wizard for a fully guided, zero-configuration first run.
 * Native, dependency-free .xlsx export (no Composer/PhpSpreadsheet required).
 * CSV export rewritten with UTF-8 BOM and automatic delimiter detection.

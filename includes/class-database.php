@@ -67,6 +67,7 @@ class Database {
 			child_name VARCHAR(255) NOT NULL DEFAULT '',
 			child_age SMALLINT UNSIGNED NULL,
 			parent_name VARCHAR(255) NOT NULL DEFAULT '',
+			second_parent_name VARCHAR(255) NOT NULL DEFAULT '',
 			parent_email VARCHAR(255) NOT NULL DEFAULT '',
 			phone VARCHAR(50) NOT NULL DEFAULT '',
 			second_parent_email VARCHAR(255) NOT NULL DEFAULT '',
@@ -177,6 +178,7 @@ class Database {
 			'child_name'          => '',
 			'child_age'           => null,
 			'parent_name'         => '',
+			'second_parent_name'  => '',
 			'parent_email'        => '',
 			'phone'               => '',
 			'second_parent_email' => '',
@@ -199,6 +201,7 @@ class Database {
 				'child_name'           => $data['child_name'],
 				'child_age'            => $data['child_age'], // null quando não informado/inválido - nunca 0 ou string vazia.
 				'parent_name'          => $data['parent_name'],
+				'second_parent_name'   => $data['second_parent_name'],
 				'parent_email'         => $data['parent_email'],
 				'phone'                => $data['phone'],
 				'second_parent_email'  => $data['second_parent_email'],
@@ -211,7 +214,7 @@ class Database {
 				'created_at'           => $now,
 				'updated_at'           => $now,
 			),
-			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
@@ -723,7 +726,8 @@ class Database {
 
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR second_parent_email LIKE %s OR second_parent_phone LIKE %s OR registration_number LIKE %s)';
+			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR second_parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR second_parent_email LIKE %s OR second_parent_phone LIKE %s OR registration_number LIKE %s)';
+			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
@@ -791,7 +795,8 @@ class Database {
 
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR second_parent_email LIKE %s OR second_parent_phone LIKE %s OR registration_number LIKE %s)';
+			$where[]  = '(child_name LIKE %s OR parent_name LIKE %s OR second_parent_name LIKE %s OR parent_email LIKE %s OR phone LIKE %s OR second_parent_email LIKE %s OR second_parent_phone LIKE %s OR registration_number LIKE %s)';
+			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;

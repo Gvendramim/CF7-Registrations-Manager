@@ -151,6 +151,7 @@ class Form_Handler {
 		$child_name          = $this->extract_text_field( $posted_data, $map['child_name'] );
 		$child_age            = $this->extract_age_field( $posted_data, $map['child_age'] );
 		$parent_name         = $this->extract_text_field( $posted_data, $map['parent_name'] );
+		$second_parent_name  = $this->extract_text_field( $posted_data, $map['second_parent_name'] );
 		$parent_email        = $this->extract_email_field( $posted_data, $map['parent_email'] );
 		$phone               = $this->extract_phone_field( $posted_data, $map['phone'] );
 		$second_parent_email = $this->extract_email_field( $posted_data, $map['second_parent_email'] );
@@ -163,6 +164,7 @@ class Form_Handler {
 			'child_name'          => $child_name,
 			'child_age'           => $child_age,
 			'parent_name'         => $parent_name,
+			'second_parent_name'  => $second_parent_name,
 			'parent_email'        => $parent_email,
 			'phone'               => $phone,
 			'second_parent_email' => $second_parent_email,
