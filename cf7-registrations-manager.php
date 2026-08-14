@@ -1,10 +1,18 @@
 <?php
 /**
  * Plugin Name:       CF7 Registrations Manager
- * Description:       Captura e gerencia automaticamente as inscrições enviadas por qualquer formulário do Contact Form 7 escolhido pelo administrador, armazenando os dados em uma tabela própria, com dashboard, mapeamento de campos configurável, painel administrativo completo, sistema de logs, exportação e API REST.
+ * Plugin URI:        https://github.com/Gvendramim/CF7-Registrations-Manager
+ * Description:       Automatically captures and manages Contact Form 7 registrations with a configurable field mapping system, dashboard, logs, CSV/XLSX export, REST API, and Microsoft Excel Online synchronization via OAuth 2.0.
  * Version:           2.3.0
  * Author:            Gabriel Vendramim Ferreira
- * 
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       cf7-registrations-manager
+ * Domain Path:       /languages
+ * Requires at least: 6.0
+ * Requires PHP:      8.1
+ */
+
  * @package Music_Club_Registrations
  */
 

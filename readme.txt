@@ -1,5 +1,12 @@
 === CF7 Registrations Manager ===
-Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel
+Contributors: GabrielVendramim
+Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel, microsoft 365
+Requires at least: 6.0
+Tested up to: 6.6
+Requires PHP: 8.1
+Stable tag: 2.3.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Plug-and-play: install, activate, and a guided Setup Wizard configures everything. Captures registrations from any Contact Form 7 form, with a dashboard, native CSV/Excel export, a REST API, and optional Excel Online sync — zero Composer, zero terminal, zero code edits.
 
@@ -29,7 +36,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 == Installation ==
 
-1. Upload the `music-club-registrations` folder to `/wp-content/plugins/`.
+1. Upload the `cf7-registrations-manager` folder to `/wp-content/plugins/`.
 2. Activate the plugin from the "Plugins" menu.
 3. The Setup Wizard opens automatically — follow the six steps (environment check, form selection, field mapping, database setup, API key, final test).
 4. That's it. No Composer, no terminal, no manual library installation.
