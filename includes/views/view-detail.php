@@ -148,6 +148,16 @@ $delete_url    = wp_nonce_url(
 							</tr>
 						<?php endif; ?>
 
+						<?php if ( ! empty( $registration['total_amount'] ?? '' ) ) : ?>
+							<tr>
+								<th scope="row" colspan="2"><h2 class="mcr-detail-section-title"><?php esc_html_e( 'Payment Information', 'music-club-registrations' ); ?></h2></th>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Total Amount', 'music-club-registrations' ); ?></th>
+								<td><?php echo esc_html( $registration['total_amount'] ); ?></td>
+							</tr>
+						<?php endif; ?>
+
 						<tr>
 							<th scope="row" colspan="2"><h2 class="mcr-detail-section-title"><?php esc_html_e( 'Registration Details', 'music-club-registrations' ); ?></h2></th>
 						</tr>

@@ -78,6 +78,7 @@ class Excel_Online {
 			'second_parent_phone'  => array( 'additionalphone', 'secondphone', 'secondparentphone', 'parent2phone', 'alternatephone' ),
 			'child_class'          => array( 'class', 'classroom', 'grade' ),
 			'interests'            => array( 'program', 'interests', 'activity', 'programs' ),
+			'total_amount'         => array( 'totalamount', 'total', 'amount', 'price', 'cost', 'payment', 'fee' ),
 			'additional_message'   => array( 'message', 'additionalmessage', 'notes', 'comments' ),
 			'status'               => array( 'status' ),
 			'created_at'           => array( 'createdat', 'date', 'submitted', 'registrationdate', 'created' ),

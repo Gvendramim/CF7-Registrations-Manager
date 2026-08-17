@@ -1,7 +1,3 @@
-/**
- * Estilos administrativos do plugin Music Club Registrations.
- */
-
 .mcr-wrap .mcr-export-actions {
 	display: inline-block;
 	margin-left: 8px;
@@ -137,10 +133,21 @@
 	letter-spacing: 0.02em;
 }
 
-.mcr-stat-card-status.mcr-status-new { border-left: 4px solid #0a5dc2; }
-.mcr-stat-card-status.mcr-status-contacted { border-left: 4px solid #9a6700; }
-.mcr-stat-card-status.mcr-status-confirmed { border-left: 4px solid #1a7f37; }
-.mcr-stat-card-status.mcr-status-cancelled { border-left: 4px solid #c62828; }
+.mcr-stat-card-status.mcr-status-new {
+	border-left: 4px solid #0a5dc2;
+}
+
+.mcr-stat-card-status.mcr-status-contacted {
+	border-left: 4px solid #9a6700;
+}
+
+.mcr-stat-card-status.mcr-status-confirmed {
+	border-left: 4px solid #1a7f37;
+}
+
+.mcr-stat-card-status.mcr-status-cancelled {
+	border-left: 4px solid #c62828;
+}
 
 .mcr-charts-grid {
 	display: grid;
@@ -385,11 +392,14 @@
 }
 
 @keyframes mcr-spin {
-	to { transform: rotate(360deg); }
+	to {
+		transform: rotate(360deg);
+	}
 }
 
 /* Dark mode compatibility (follows OS/browser preference for wp-admin custom UI) */
 @media (prefers-color-scheme: dark) {
+
 	body.admin-color-fresh .mcr-wrap .mcr-stat-card,
 	body.admin-color-fresh .mcr-wrap .mcr-chart-card,
 	body.admin-color-fresh .mcr-wrap .mcr-wizard-card,
@@ -549,11 +559,22 @@
 	height: 16px;
 }
 
-.mcr-excel-sync-synced { color: #1a7f37; }
+.mcr-excel-sync-synced {
+	color: #1a7f37;
+}
+
 .mcr-excel-sync-pending,
-.mcr-excel-sync-syncing { color: #9a6700; }
-.mcr-excel-sync-failed { color: #c62828; }
-.mcr-excel-sync-not_configured { color: #8c8f94; }
+.mcr-excel-sync-syncing {
+	color: #9a6700;
+}
+
+.mcr-excel-sync-failed {
+	color: #c62828;
+}
+
+.mcr-excel-sync-not_configured {
+	color: #8c8f94;
+}
 
 .mcr-ms-dashboard-card {
 	background: #fff;

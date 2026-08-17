@@ -130,6 +130,39 @@ function mcr_current_user_can_manage() {
 }
 
 /**
+ * Converte um valor monetário armazenado como texto (ex: "€280", "$1,140.00")
+ * em um número de ponto flutuante, usado apenas para cálculos agregados
+ * (Dashboard). O valor original armazenado nunca é alterado por esta
+ * função - ela é somente leitura/derivada.
+ *
+ * Aceita o formato "simples" mais comum (símbolo de moeda + número, sem
+ * separador de milhar, ex: "€280" ou "280"). Não tenta adivinhar entre
+ * formatos "1.234,56" (europeu) e "1,234.56" (americano) - assume ponto
+ * como separador decimal, que é o caso mais comum para os valores curtos
+ * gerados por cálculos simples de formulário (ex: múltiplos de €140).
+ *
+ * @param string $raw_amount Valor bruto armazenado (ex: "€280").
+ * @return float|null Número extraído, ou null se nada numérico for encontrado.
+ */
+function mcr_parse_amount_to_float( $raw_amount ) {
+	$raw_amount = trim( (string) $raw_amount );
+
+	if ( '' === $raw_amount ) {
+		return null;
+	}
+
+	// Remove tudo que não for dígito ou ponto (símbolos de moeda, espaços,
+	// separadores de milhar como vírgula, etc.).
+	$numeric = preg_replace( '/[^0-9.]/', '', $raw_amount );
+
+	if ( '' === $numeric || ! is_numeric( $numeric ) ) {
+		return null;
+	}
+
+	return (float) $numeric;
+}
+
+/**
  * Sanitiza um campo de telefone, preservando apenas dígitos, espaços,
  * parênteses, hífen e sinal de mais.
  *

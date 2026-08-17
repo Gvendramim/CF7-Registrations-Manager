@@ -4,8 +4,12 @@
  *
  * Variáveis disponíveis (definidas em Admin::render_dashboard_page):
  *
- * @var array  $stats          Indicadores retornados por Database::get_dashboard_stats().
- * @var string $monitored_form Rótulo do formulário atualmente monitorado.
+ * @var array  $stats               Indicadores retornados por Database::get_dashboard_stats().
+ * @var string $monitored_form      Rótulo do formulário atualmente monitorado.
+ * @var array  $excel_sync_stats    Indicadores de sincronização com o Excel Online.
+ * @var bool   $excel_connected     Se a integração com o Excel Online está totalmente configurada.
+ * @var bool   $show_revenue_stats  Se os cartões financeiros devem ser exibidos (campo Total Amount mapeado).
+ * @var array|null $revenue_stats   Indicadores financeiros (Database::get_revenue_stats()), ou null quando não aplicável.
  *
  * @package Music_Club_Registrations
  */
@@ -60,6 +64,29 @@ $statuses = mcr_get_statuses();
 			</div>
 		<?php endforeach; ?>
 	</div>
+
+	<?php if ( $show_revenue_stats && $revenue_stats ) : ?>
+		<h2><?php esc_html_e( 'Financial Overview', 'music-club-registrations' ); ?></h2>
+		<div class="mcr-stats-grid">
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">€<?php echo esc_html( number_format_i18n( $revenue_stats['total_revenue'], 2 ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Total Revenue', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">€<?php echo esc_html( number_format_i18n( $revenue_stats['average'], 2 ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Average Registration Value', 'music-club-registrations' ); ?></span>
+			</div>
+		</div>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %d: number of registrations that have a Total Amount value */
+				esc_html__( 'Based on %d registration(s) with a Total Amount value.', 'music-club-registrations' ),
+				(int) $revenue_stats['count_with_amount']
+			);
+			?>
+		</p>
+	<?php endif; ?>
 
 	<div class="mcr-charts-grid">
 		<div class="mcr-chart-card">

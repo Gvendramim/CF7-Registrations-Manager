@@ -4,7 +4,7 @@ Tags: contact form 7, registrations, forms, database, export, dashboard, rest ap
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 8.1
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,6 +64,11 @@ Yes. Every endpoint requires a valid API key (sent as a header or query paramete
 Only if you explicitly enable "Remove Data" on the Settings screen. By default, all data is preserved.
 
 == Changelog ==
+
+= 2.4.0 =
+* Added support for a new optional field: Total Amount (`total-amount`) — the exact value calculated by the form (e.g. "€280") is captured and tracked through the database, field mapping, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, and the registration detail screen ("Payment Information").
+* Safe, additive, idempotent database migration for the new column; fully backward-compatible with forms and registrations that don't have this field.
+* New optional Dashboard cards — "Total Revenue" and "Average Registration Value" — shown automatically only when the Total Amount field is mapped.
 
 = 2.3.0 =
 * Added support for a new optional field: Parent/Guardian Name (Additional) (`second-parent-name`) — tracked through capture, database, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, and the registration detail screen.

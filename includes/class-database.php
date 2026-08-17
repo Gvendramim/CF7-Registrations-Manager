@@ -74,6 +74,7 @@ class Database {
 			second_parent_phone VARCHAR(50) NOT NULL DEFAULT '',
 			child_class VARCHAR(100) NOT NULL DEFAULT '',
 			interests TEXT NULL,
+			total_amount VARCHAR(50) NOT NULL DEFAULT '',
 			additional_message TEXT NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			internal_notes LONGTEXT NULL,
@@ -185,6 +186,7 @@ class Database {
 			'second_parent_phone' => '',
 			'child_class'         => '',
 			'interests'           => '',
+			'total_amount'        => '',
 			'additional_message'  => '',
 			'status'              => 'new',
 			'internal_notes'      => '',
@@ -208,13 +210,14 @@ class Database {
 				'second_parent_phone'  => $data['second_parent_phone'],
 				'child_class'          => $data['child_class'],
 				'interests'            => $data['interests'],
+				'total_amount'         => $data['total_amount'],
 				'additional_message'   => $data['additional_message'],
 				'status'               => $data['status'],
 				'internal_notes'       => $data['internal_notes'],
 				'created_at'           => $now,
 				'updated_at'           => $now,
 			),
-			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
@@ -1010,6 +1013,47 @@ class Database {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Calcula indicadores financeiros simples (receita total e valor
+	 * médio por inscrição) a partir do campo `total_amount`, usado pelos
+	 * cartões opcionais "Total Revenue" e "Average Registration Value" do
+	 * Dashboard.
+	 *
+	 * O campo `total_amount` é armazenado como texto (ex: "€280"), no
+	 * formato exato em que foi enviado pelo formulário - por isso os
+	 * valores são convertidos para número aqui, apenas para fins de
+	 * cálculo, sem alterar o dado original armazenado.
+	 *
+	 * @return array{total_revenue: float, average: float, count_with_amount: int}
+	 */
+	public static function get_revenue_stats() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$values = $wpdb->get_col( "SELECT total_amount FROM {$table} WHERE total_amount != ''" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$total = 0.0;
+		$count = 0;
+
+		foreach ( $values ?: array() as $raw_amount ) {
+			$amount = mcr_parse_amount_to_float( $raw_amount );
+
+			if ( null === $amount ) {
+				continue;
+			}
+
+			$total += $amount;
+			++$count;
+		}
+
+		return array(
+			'total_revenue'      => $total,
+			'average'            => $count > 0 ? ( $total / $count ) : 0.0,
+			'count_with_amount' => $count,
+		);
 	}
 
 	/**

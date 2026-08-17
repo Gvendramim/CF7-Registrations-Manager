@@ -105,6 +105,7 @@ class Export {
 			'second_parent_phone'  => __( 'Additional Phone', 'music-club-registrations' ),
 			'child_class'          => __( 'Class', 'music-club-registrations' ),
 			'interests'            => __( 'Interests', 'music-club-registrations' ),
+			'total_amount'         => __( 'Total Amount', 'music-club-registrations' ),
 			'additional_message'   => __( 'Additional Message', 'music-club-registrations' ),
 			'status'               => __( 'Status', 'music-club-registrations' ),
 			'created_at'           => __( 'Created At', 'music-club-registrations' ),

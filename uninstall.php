@@ -14,15 +14,11 @@
  * @package Music_Club_Registrations
  */
 
-// Garante que este arquivo só seja executado pelo próprio WordPress durante
-// o processo oficial de desinstalação de plugins.
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
 /**
- * Determina se os dados do plugin devem ser removidos.
- *
  * @return bool
  */
 function mcr_should_remove_data_on_uninstall() {

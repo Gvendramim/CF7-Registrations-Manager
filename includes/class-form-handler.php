@@ -158,6 +158,7 @@ class Form_Handler {
 		$second_parent_phone = $this->extract_phone_field( $posted_data, $map['second_parent_phone'] );
 		$child_class         = $this->extract_text_field( $posted_data, $map['child_class'] );
 		$interests           = $this->extract_multi_field( $posted_data, $map['interests'] );
+		$total_amount        = $this->extract_text_field( $posted_data, $map['total_amount'] );
 		$additional_message  = $this->extract_textarea_field( $posted_data, $map['additional_message'] );
 
 		return array(
@@ -171,6 +172,7 @@ class Form_Handler {
 			'second_parent_phone' => $second_parent_phone,
 			'child_class'         => $child_class,
 			'interests'           => $interests,
+			'total_amount'        => $total_amount,
 			'additional_message'  => $additional_message,
 			'status'              => Settings::get( 'default_status', 'new' ),
 			'internal_notes'      => '',

@@ -1,8 +1,5 @@
 <?php
 /**
- * Classe responsável pela área administrativa do plugin: menus, telas de
- * dashboard, listagem, detalhes, configurações e logs, além do
- * processamento de ações do admin.
  *
  * @package Music_Club_Registrations
  */
@@ -13,12 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class Admin
- *
- * Responsabilidade única: interface administrativa (UI) do plugin.
- * A lógica de negócio permanece nas classes Database, Settings e Logger.
- */
 class Admin {
 
 	/**
@@ -72,8 +63,6 @@ class Admin {
 	}
 
 	/**
-	 * Adiciona ajuda contextual (aba "Help" no canto superior direito) em
-	 * cada tela do plugin, orientando o administrador sem sair da página.
 	 *
 	 * @param \WP_Screen $screen Tela atual do admin.
 	 * @return void
@@ -91,12 +80,6 @@ class Admin {
 			Setup_Wizard::PAGE_SLUG => __( 'This wizard walks you through the one-time setup: checking your environment, selecting a form, mapping its fields and confirming everything works.', 'music-club-registrations' ),
 		);
 
-		// Escolhe a correspondência mais específica (slug mais longo) em
-		// vez da primeira encontrada - necessário porque o nome da tela de
-		// páginas como Detalhes ou o Setup Wizard também contém o slug do
-		// menu principal (por serem registradas como seus submenus), então
-		// uma verificação simples de "contém" poderia casar com o item
-		// errado.
 		$matched_slug = '';
 		foreach ( array_keys( $help_content ) as $slug ) {
 			if ( false !== strpos( $screen->id, $slug ) && strlen( $slug ) > strlen( $matched_slug ) ) {
@@ -116,9 +99,6 @@ class Admin {
 	}
 
 	/**
-	 * Registra o menu "Music Club" e seus submenus no painel: Dashboard,
-	 * Registrations, Settings e Logs.
-	 *
 	 * @return void
 	 */
 	public function register_menus() {
@@ -170,20 +150,6 @@ class Admin {
 			array( $this, 'render_logs_page' )
 		);
 
-		// Página oculta (não aparece no menu) usada pela tela de detalhes.
-		//
-		// IMPORTANTE: usamos `null` como página-pai de propósito. É a forma
-		// oficialmente documentada pelo WordPress de registrar uma página
-		// de admin acessível sem exibi-la em nenhum menu.
-		//
-		// Uma versão anterior deste arquivo tentava "esconder" esta página
-		// registrando-a como submenu normal e chamando
-		// remove_submenu_page() em seguida - isso parecia funcionar, mas
-		// remove_submenu_page() também apaga a entrada que o WordPress usa
-		// internamente (user_can_access_admin_page()) para AUTORIZAR o
-		// acesso à página, então a página passava a exibir "Sorry, you are
-		// not allowed to access this page." para todo mundo, inclusive
-		// administradores. Não repita esse erro.
 		add_submenu_page(
 			null,
 			__( 'Registration Details', 'music-club-registrations' ),
@@ -195,8 +161,6 @@ class Admin {
 	}
 
 	/**
-	 * Carrega CSS/JS apenas nas telas do plugin, evitando peso desnecessário
-	 * em outras páginas do admin.
 	 *
 	 * @param string $hook Hook da tela atual.
 	 * @return void
@@ -257,7 +221,6 @@ class Admin {
 	}
 
 	/**
-	 * Monta os dados utilizados pelos gráficos Chart.js do dashboard.
 	 *
 	 * @return array
 	 */
@@ -294,8 +257,6 @@ class Admin {
 	}
 
 	/**
-	 * Verifica se a tela atual pertence ao plugin (usado para carregar assets
-	 * apenas quando necessário).
 	 *
 	 * @return bool
 	 */
@@ -310,7 +271,6 @@ class Admin {
 	}
 
 	/**
-	 * Verifica se a tela atual é o Dashboard do plugin.
 	 *
 	 * @return bool
 	 */
@@ -334,17 +294,18 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'music-club-registrations' ) );
 		}
 
-		$stats           = Database::get_dashboard_stats();
-		$monitored_form  = $this->get_monitored_form_label();
+		$stats            = Database::get_dashboard_stats();
+		$monitored_form   = $this->get_monitored_form_label();
 		$excel_sync_stats = Database::get_sync_stats();
 		$excel_connected  = Excel_OAuth::is_fully_configured();
+
+		$show_revenue_stats = ! empty( Settings::get_field_map()['total_amount'] );
+		$revenue_stats      = $show_revenue_stats ? Database::get_revenue_stats() : null;
 
 		require MCR_PLUGIN_DIR . 'includes/views/view-dashboard.php';
 	}
 
 	/**
-	 * Retorna um rótulo amigável do formulário atualmente monitorado, para
-	 * exibição no dashboard.
 	 *
 	 * @return string
 	 */
@@ -361,7 +322,6 @@ class Admin {
 	}
 
 	/**
-	 * Renderiza a tela de listagem de inscrições.
 	 *
 	 * @return void
 	 */
@@ -381,7 +341,6 @@ class Admin {
 	}
 
 	/**
-	 * Renderiza a tela de detalhes de uma inscrição.
 	 *
 	 * @return void
 	 */
@@ -404,7 +363,6 @@ class Admin {
 	}
 
 	/**
-	 * Renderiza a tela de configurações do plugin.
 	 *
 	 * @return void
 	 */
@@ -420,21 +378,10 @@ class Admin {
 			$active_tab = 'general';
 		}
 
-		// A aba "Advanced > Microsoft Integration" contém credenciais
-		// sensíveis (Client ID/Secret do app Microsoft) e deve ficar
-		// disponível apenas para administradores com a capability mais
-		// alta do WordPress - independentemente do filtro
-		// `mcr_manage_capability`, que pode ter sido reduzido para outros
-		// papéis terem acesso ao restante do plugin.
 		if ( 'advanced' === $active_tab && ! current_user_can( 'manage_options' ) ) {
 			$active_tab = 'general';
 		}
 
-		// Permite pré-visualizar os campos de um formulário diferente do
-		// atualmente salvo, antes de confirmar o mapeamento e salvar. O botão
-		// "Load Fields" reenvia o formulário via GET, então tanto o alias
-		// "form_id" (nome do campo <select>) quanto "preview_form_id" são
-		// aceitos.
 		$preview_form_id = $settings['form_id'];
 		if ( isset( $_GET['form_id'] ) ) {
 			$preview_form_id = absint( $_GET['form_id'] );
@@ -454,9 +401,6 @@ class Admin {
 		$backup_notice = get_transient( 'mcr_backup_notice_' . get_current_user_id() );
 		delete_transient( 'mcr_backup_notice_' . get_current_user_id() );
 
-		// Dados exclusivos da aba "Excel Online" (só precisam ser
-		// calculados quando ela está ativa, para evitar chamadas
-		// desnecessárias à Microsoft Graph API nas demais abas).
 		$ms_connection    = array();
 		$ms_workbooks     = array();
 		$ms_worksheets    = array();
@@ -498,7 +442,6 @@ class Admin {
 	}
 
 	/**
-	 * Renderiza a tela de visualização de logs.
 	 *
 	 * @return void
 	 */
@@ -533,8 +476,6 @@ class Admin {
 	}
 
 	/**
-	 * Processa as ações administrativas: salvar status/observações, excluir,
-	 * ações em massa, salvar configurações e limpar logs.
 	 *
 	 * @return void
 	 */
@@ -552,9 +493,6 @@ class Admin {
 	}
 
 	/**
-	 * Processa o salvamento completo das configurações do plugin: formulário
-	 * monitorado, mapeamento de campos, status padrão, prevenção de
-	 * duplicidade, remoção de dados e ativação da exportação em Excel.
 	 *
 	 * @return void
 	 */
@@ -569,12 +507,6 @@ class Admin {
 			wp_die( esc_html__( 'Security check failed. Please try again.', 'music-club-registrations' ) );
 		}
 
-		// Cada aba da tela de Settings envia apenas os campos que ela
-		// exibe. Sem essa distinção, salvar a aba "Excel Integration", por
-		// exemplo, apagaria o formulário monitorado e o mapeamento de
-		// campos configurados na aba "General" (que não são reenviados
-		// nesse formulário). Partimos sempre das configurações já salvas e
-		// sobrescrevemos apenas a seção correspondente.
 		$section = isset( $_POST['settings_section'] ) ? sanitize_key( wp_unslash( $_POST['settings_section'] ) ) : 'general';
 		$input   = Settings::get_all();
 
@@ -591,9 +523,6 @@ class Admin {
 			$input['remove_data_on_uninstall'] = ! empty( $_POST['remove_data_on_uninstall'] );
 			$input['enable_excel_export']      = ! empty( $_POST['enable_excel_export'] );
 		} elseif ( 'advanced' === $section ) {
-			// Credenciais do app Microsoft (Client ID/Secret), visíveis
-			// apenas em Settings > Advanced > Microsoft Integration - o
-			// cliente final nunca vê nem precisa preencher esta seção.
 			if ( ! current_user_can( 'manage_options' ) ) {
 				wp_die( esc_html__( 'You do not have permission to perform this action.', 'music-club-registrations' ) );
 			}
@@ -621,7 +550,6 @@ class Admin {
 	}
 
 	/**
-	 * Processa a regeneração manual da chave de API.
 	 *
 	 * @return void
 	 */
@@ -721,9 +649,6 @@ class Admin {
 	}
 
 	/**
-	 * Processa o botão "Test Connection" da API REST: realiza uma chamada
-	 * real ao endpoint /registrations utilizando a chave de API atual, e
-	 * reporta se a autenticação e a rota estão funcionando corretamente.
 	 *
 	 * @return void
 	 */

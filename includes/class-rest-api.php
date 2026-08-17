@@ -540,6 +540,7 @@ class REST_API {
 			'second_parent_phone'  => $registration['second_parent_phone'] ?? '',
 			'child_class'          => $registration['child_class'],
 			'interests'            => mcr_interests_to_array( $registration['interests'] ),
+			'total_amount'         => $registration['total_amount'] ?? '',
 			'additional_message'   => $registration['additional_message'],
 			'status'               => $registration['status'],
 			'status_label'         => mcr_get_status_label( $registration['status'] ),

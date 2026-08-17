@@ -51,6 +51,7 @@ class Settings {
 			'second_parent_phone' => __( 'Additional Phone', 'music-club-registrations' ),
 			'child_class'         => __( 'Class', 'music-club-registrations' ),
 			'interests'           => __( 'Program', 'music-club-registrations' ),
+			'total_amount'        => __( 'Total Amount', 'music-club-registrations' ),
 			'additional_message'  => __( 'Message', 'music-club-registrations' ),
 		);
 	}
@@ -74,6 +75,7 @@ class Settings {
 				'second_parent_phone' => '',
 				'child_class'         => '',
 				'interests'           => '',
+				'total_amount'        => '',
 				'additional_message'  => '',
 			),
 			'default_status'           => 'new',
