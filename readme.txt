@@ -22,7 +22,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 **Native CSV & Excel export** — CSV uses UTF-8 BOM and an automatically detected delimiter (`;` for locales like pt_BR, de_DE, fr_FR; `,` for en_US), so it always opens correctly in Excel Windows, Excel Online, and LibreOffice. Excel (.xlsx) files are generated with a dependency-free native writer (uses PHP's built-in ZipArchive extension) — no library installation, ever. If ZipArchive is unavailable on a host, the plugin shows a friendly notice and CSV export keeps working; it never throws a fatal error.
 
-**Excel Online integration** — connect via the Microsoft Graph API (Tenant ID, Client ID, Client Secret, Workbook, Worksheet, Table) with a one-click "Test Connection" button. Once connected, every new registration is pushed to the configured table automatically.
+**Excel Online integration** — Excel Online integration — securely connect through Microsoft Graph API using OAuth 2.0. Clients simply click Connect Microsoft 365, sign in, grant permission, and choose the workbook, worksheet and Excel Table. No Tenant ID, Client ID, Client Secret or technical resource IDs are required during the normal client setup.
 
 **REST API** — auto-registered at `cf7-registrations/v1`, with `GET registrations`, `GET registration/{id}`, `POST registration/status`, `DELETE registration/{id}`, `GET export.csv` and `GET export.xlsx`. Authenticate with a simple API key (auto-generated) via header or query parameter — ideal for Excel, Power BI, or other external tools. Includes built-in rate limiting.
 
