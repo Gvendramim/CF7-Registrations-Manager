@@ -1,22 +1,5 @@
 <?php
 /**
- * Gerencia a autenticação OAuth 2.0 (Authorization Code Flow) com a
- * Microsoft, incluindo o fluxo completo de login, armazenamento seguro
- * dos tokens, renovação automática e desconexão.
- *
- * O cliente final nunca vê nem precisa informar Tenant ID, Client ID,
- * Client Secret, tokens ou qualquer identificador técnico - ele apenas
- * clica em "Connect Microsoft 365", faz login e autoriza o aplicativo.
- *
- * As credenciais do aplicativo Microsoft (Client ID/Secret, criadas uma
- * única vez pelo desenvolvedor no Microsoft Entra) ficam em
- * Settings::get('excel_app'), gerenciadas na tela avançada
- * "Settings > Advanced > Microsoft Integration". O estado da conexão
- * (tokens, conta, seleção de workbook/worksheet/table) fica em uma opção
- * própria (`mcr_excel_connection`), separada das demais configurações,
- * para que "Disconnect" possa limpar apenas os dados sensíveis sem
- * afetar o restante do plugin.
- *
  * @package Music_Club_Registrations
  */
 
@@ -26,43 +9,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class Excel_OAuth
- *
- * Responsabilidade única: autenticação OAuth 2.0 com a Microsoft e
- * persistência do estado da conexão.
- */
 class Excel_OAuth {
 
 	/**
-	 * Nome da opção que guarda o estado da conexão (tokens, conta,
-	 * seleção de workbook/worksheet/table e mapeamento de campos).
-	 *
 	 * @var string
 	 */
 	const OPTION_NAME = 'mcr_excel_connection';
 
 	/**
-	 * Nome da transient usada para validar o parâmetro `state` do OAuth
-	 * (proteção CSRF), única por usuário.
-	 *
 	 * @var string
 	 */
 	const STATE_TRANSIENT_PREFIX = 'mcr_ms_oauth_state_';
 
 	/**
-	 * Escopos solicitados à Microsoft Graph API. `offline_access` é
-	 * obrigatório para recebermos um refresh_token; os demais permitem
-	 * identificar a conta conectada e ler/escrever arquivos do OneDrive/
-	 * SharePoint (necessário para localizar e atualizar o workbook).
-	 *
 	 * @var string
 	 */
 	const SCOPES = 'openid profile email offline_access User.Read Files.ReadWrite Files.ReadWrite.All';
 
 	/**
-	 * Registra os hooks do fluxo OAuth (início, callback e desconexão).
-	 *
 	 * @return void
 	 */
 	public function register_hooks() {
@@ -72,9 +36,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Retorna o estado completo da conexão, já mesclado com os valores
-	 * padrão.
-	 *
 	 * @return array
 	 */
 	public static function get_connection() {
@@ -147,11 +108,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Retorna a URL de callback (Redirect URI) que deve ser cadastrada no
-	 * registro do aplicativo no Microsoft Entra. É gerada dinamicamente a
-	 * partir da instalação atual do WordPress - nunca fixa no código,
-	 * garantindo que o plugin funcione em qualquer domínio.
-	 *
 	 * @return string
 	 */
 	public static function get_redirect_uri() {
@@ -159,10 +115,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Inicia o fluxo OAuth: gera o parâmetro `state` (proteção CSRF) e
-	 * redireciona o administrador para a tela de login/autorização da
-	 * Microsoft.
-	 *
 	 * @return void
 	 */
 	public function handle_oauth_start() {
@@ -187,12 +139,12 @@ class Excel_OAuth {
 
 		$authorize_url = add_query_arg(
 			array(
-				'client_id'     => rawurlencode( $app['client_id'] ),
+				'client_id'     => $app['client_id'],
 				'response_type' => 'code',
-				'redirect_uri'  => rawurlencode( self::get_redirect_uri() ),
+				'redirect_uri'  => self::get_redirect_uri(),
 				'response_mode' => 'query',
-				'scope'         => rawurlencode( self::SCOPES ),
-				'state'         => rawurlencode( $state ),
+				'scope'         => self::SCOPES,
+				'state'         => $state,
 				'prompt'        => 'select_account',
 			),
 			sprintf( 'https://login.microsoftonline.com/%s/oauth2/v2.0/authorize', rawurlencode( $app['tenant'] ) )
@@ -205,10 +157,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Processa o retorno da Microsoft após o login/autorização: valida o
-	 * `state`, troca o `code` por tokens de acesso e atualiza, e busca os
-	 * dados básicos da conta conectada.
-	 *
 	 * @return void
 	 */
 	public function handle_oauth_callback() {
@@ -265,9 +213,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Troca o `authorization code` recebido da Microsoft por um par de
-	 * tokens (access_token + refresh_token).
-	 *
 	 * @param string $code Código de autorização.
 	 * @return array{access_token:string,refresh_token:string,expires_in:int}|\WP_Error
 	 */
@@ -293,10 +238,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Renova o access_token usando o refresh_token armazenado. Chamado
-	 * automaticamente sempre que o token de acesso está expirado (ou
-	 * prestes a expirar) antes de qualquer chamada à Microsoft Graph API.
-	 *
 	 * @return string|\WP_Error Novo access_token, ou WP_Error em caso de falha (ex: autorização revogada).
 	 */
 	public static function get_valid_access_token() {
@@ -331,11 +272,6 @@ class Excel_OAuth {
 		$result   = $instance->parse_token_response( $response );
 
 		if ( is_wp_error( $result ) ) {
-			// O refresh_token pode ter sido revogado (usuário removeu o
-			// acesso do app na conta Microsoft, ou trocou a senha). Nesse
-			// caso, marcamos a conexão como desconectada para que a tela
-			// oriente o administrador a reconectar - nunca deixamos o
-			// plugin "preso" tentando repetidamente um token morto.
 			if ( 'mcr_ms_token_invalid_grant' === $result->get_error_code() ) {
 				self::update_connection(
 					array(
@@ -401,9 +337,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Busca o nome e e-mail da conta Microsoft conectada, apenas para
-	 * exibição amigável na tela (nunca usado para autenticação em si).
-	 *
 	 * @param string $access_token Token de acesso válido.
 	 * @return array{email:string,name:string}
 	 */
@@ -453,9 +386,6 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Redireciona de volta para a aba "Excel Online" da tela de
-	 * configurações, opcionalmente com parâmetros extras de status.
-	 *
 	 * @param array $extra_args Parâmetros de query adicionais.
 	 * @return void
 	 */
