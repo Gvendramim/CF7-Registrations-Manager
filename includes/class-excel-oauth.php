@@ -68,6 +68,8 @@ class Excel_OAuth {
 	}
 
 	/**
+	 * Atualiza (mescla) o estado da conexão.
+	 *
 	 * @param array $data Campos a atualizar.
 	 * @return array Estado completo após a atualização.
 	 */
@@ -80,6 +82,8 @@ class Excel_OAuth {
 	}
 
 	/**
+	 * Verifica se há uma conta Microsoft conectada.
+	 *
 	 * @return bool
 	 */
 	public static function is_connected() {
@@ -89,6 +93,8 @@ class Excel_OAuth {
 	}
 
 	/**
+	 * Verifica se a seleção de workbook/worksheet/table foi concluída.
+	 *
 	 * @return bool
 	 */
 	public static function is_fully_configured() {
@@ -129,32 +135,22 @@ class Excel_OAuth {
 		$state = wp_generate_password( 32, false );
 		set_transient( self::STATE_TRANSIENT_PREFIX . get_current_user_id(), $state, 10 * MINUTE_IN_SECONDS );
 
-		$app    = Settings::get( 'excel_app' );
-		$tenant = ! empty( $app['tenant'] ) ? $app['tenant'] : 'common';
-
-		$redirect_uri = self::get_redirect_uri();
-
-		if ( 0 !== strpos( $redirect_uri, 'https://' ) && 0 !== strpos( $redirect_uri, 'http://localhost' ) ) {
-			Logger::error(
-				'excel_online',
-				'The site is not using HTTPS (redirect_uri = ' . $redirect_uri . '). Microsoft requires a secure (https://) redirect URI; this is very likely why authorization is failing with "invalid_request".'
-			);
-		}
+		$app = Settings::get( 'excel_app' );
 
 		$authorize_url = add_query_arg(
 			array(
 				'client_id'     => $app['client_id'],
 				'response_type' => 'code',
-				'redirect_uri'  => $redirect_uri,
+				'redirect_uri'  => self::get_redirect_uri(),
 				'response_mode' => 'query',
 				'scope'         => self::SCOPES,
 				'state'         => $state,
 				'prompt'        => 'select_account',
 			),
-			sprintf( 'https://login.microsoftonline.com/%s/oauth2/v2.0/authorize', rawurlencode( $tenant ) )
+			sprintf( 'https://login.microsoftonline.com/%s/oauth2/v2.0/authorize', rawurlencode( $app['tenant'] ) )
 		);
 
-		Logger::info( 'excel_online', 'Microsoft OAuth flow started. Redirect URI: ' . $redirect_uri, get_current_user_id() );
+		Logger::info( 'excel_online', 'Microsoft OAuth flow started.', get_current_user_id() );
 
 		wp_redirect( $authorize_url ); // phpcs:ignore WordPress.Security.SafeRedirect -- destino é a Microsoft, fora do site; wp_safe_redirect bloquearia por domínio externo.
 		exit;
@@ -167,19 +163,12 @@ class Excel_OAuth {
 		if ( ! mcr_current_user_can_manage() ) {
 			wp_die( esc_html__( 'You do not have permission to perform this action.', 'music-club-registrations' ) );
 		}
-.
+
+		// O usuário cancelou o login ou negou a autorização.
 		if ( isset( $_GET['error'] ) ) {
-			$error_code = sanitize_text_field( wp_unslash( $_GET['error'] ) );
 			$description = isset( $_GET['error_description'] ) ? sanitize_text_field( wp_unslash( $_GET['error_description'] ) ) : '';
 
-			Logger::warning(
-				'excel_online',
-				sprintf(
-					'Microsoft OAuth authorization was cancelled or denied: %s%s',
-					$error_code,
-					$description ? ' — ' . $description : ''
-				)
-			);
+			Logger::warning( 'excel_online', 'Microsoft OAuth authorization was cancelled or denied: ' . sanitize_text_field( wp_unslash( $_GET['error'] ) ) );
 
 			$this->redirect_to_excel_tab( array( 'ms_error' => 'authorization_denied' ) );
 		}
@@ -303,6 +292,8 @@ class Excel_OAuth {
 		self::update_connection(
 			array(
 				'access_token'     => $result['access_token'],
+				// A Microsoft às vezes retorna um novo refresh_token junto
+				// com o access_token renovado; se não vier, mantemos o atual.
 				'refresh_token'    => ! empty( $result['refresh_token'] ) ? $result['refresh_token'] : $connection['refresh_token'],
 				'token_expires_at' => time() + absint( $result['expires_in'] ),
 			)
@@ -314,6 +305,9 @@ class Excel_OAuth {
 	}
 
 	/**
+	 * Interpreta a resposta HTTP de um endpoint de token da Microsoft,
+	 * validando erros comuns sem nunca expor o conteúdo do token nos logs.
+	 *
 	 * @param array|\WP_Error $response Resposta de wp_remote_post().
 	 * @return array{access_token:string,refresh_token:string,expires_in:int}|\WP_Error
 	 */
@@ -371,6 +365,10 @@ class Excel_OAuth {
 	}
 
 	/**
+	 * Processa a desconexão da conta Microsoft: apaga os tokens
+	 * armazenados, mas preserva os registros do WordPress e o histórico
+	 * de sincronização já realizado.
+	 *
 	 * @return void
 	 */
 	public function handle_disconnect() {
