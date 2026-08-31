@@ -7,6 +7,7 @@
  * @var \Music_Club_Registrations\List_Table $list_table      Instância da tabela.
  * @var string                                $current_search Termo de busca atual.
  * @var string                                $current_status Filtro de status atual.
+ * @var string                                $current_photo_permission Filtro de permissão de fotografia atual.
  * @var array<string,string>                  $export_columns Colunas disponíveis para exportação.
  *
  * @package Music_Club_Registrations
@@ -65,6 +66,7 @@ foreach ( $export_columns as $key => $label ) {
 				<input type="hidden" name="scope" value="filtered" />
 				<input type="hidden" name="s" value="<?php echo esc_attr( $current_search ); ?>" />
 				<input type="hidden" name="status" value="<?php echo esc_attr( $current_status ); ?>" />
+				<input type="hidden" name="photo_permission" value="<?php echo esc_attr( $current_photo_permission ); ?>" />
 				<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( $export_nonce ); ?>" />
 				<div class="mcr-column-options"><?php echo $column_checkboxes_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped when built above. ?></div>
 				<button type="submit" name="action" value="mcr_export_csv" class="button"><?php esc_html_e( 'Export CSV', 'music-club-registrations' ); ?></button>

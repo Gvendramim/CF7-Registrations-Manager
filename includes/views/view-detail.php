@@ -158,6 +158,16 @@ $delete_url    = wp_nonce_url(
 							</tr>
 						<?php endif; ?>
 
+						<?php if ( in_array( $registration['photo_permission'] ?? '', array( 'Yes', 'No' ), true ) ) : ?>
+							<tr>
+								<th scope="row" colspan="2"><h2 class="mcr-detail-section-title"><?php esc_html_e( 'Permissions', 'music-club-registrations' ); ?></h2></th>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Photography Permission', 'music-club-registrations' ); ?></th>
+								<td><?php echo mcr_render_photo_permission_badge( $registration['photo_permission'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped inside the helper. ?></td>
+							</tr>
+						<?php endif; ?>
+
 						<tr>
 							<th scope="row" colspan="2"><h2 class="mcr-detail-section-title"><?php esc_html_e( 'Registration Details', 'music-club-registrations' ); ?></h2></th>
 						</tr>

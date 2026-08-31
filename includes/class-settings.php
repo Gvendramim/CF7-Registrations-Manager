@@ -52,6 +52,7 @@ class Settings {
 			'child_class'         => __( 'Class', 'music-club-registrations' ),
 			'interests'           => __( 'Program', 'music-club-registrations' ),
 			'total_amount'        => __( 'Total Amount', 'music-club-registrations' ),
+			'photo_permission'    => __( 'Photography Permission', 'music-club-registrations' ),
 			'additional_message'  => __( 'Message', 'music-club-registrations' ),
 		);
 	}
@@ -76,6 +77,7 @@ class Settings {
 				'child_class'         => '',
 				'interests'           => '',
 				'total_amount'        => '',
+				'photo_permission'    => '',
 				'additional_message'  => '',
 			),
 			'default_status'           => 'new',
@@ -198,14 +200,30 @@ class Settings {
 
 			$current_secret = self::get( 'excel_app', $defaults['excel_app'] )['client_secret'];
 
+			// O campo "tenant" final pode vir de duas fontes: o seletor
+			// (common/organizations/consumers), ou - quando o app foi
+			// registrado como single-tenant no Entra - o Tenant ID/domínio
+			// digitado manualmente em "tenant_id". Usar "common" para um
+			// app single-tenant faz a Microsoft recusar a conexão com o
+			// erro AADSTS50194, então o valor específico sempre tem
+			// prioridade quando preenchido.
+			$tenant_type = isset( $raw['tenant_type'] ) ? sanitize_text_field( $raw['tenant_type'] ) : 'common';
+			$tenant_id   = isset( $raw['tenant_id'] ) ? trim( sanitize_text_field( $raw['tenant_id'] ) ) : '';
+
+			if ( 'specific' === $tenant_type && '' !== $tenant_id ) {
+				$tenant = $tenant_id;
+			} elseif ( in_array( $tenant_type, array( 'common', 'organizations', 'consumers' ), true ) ) {
+				$tenant = $tenant_type;
+			} else {
+				$tenant = 'common';
+			}
+
 			$settings['excel_app'] = array(
 				'client_id'     => isset( $raw['client_id'] ) ? sanitize_text_field( $raw['client_id'] ) : '',
 				'client_secret' => isset( $raw['client_secret'] ) && '' !== $raw['client_secret']
 					? sanitize_text_field( $raw['client_secret'] )
 					: $current_secret,
-				'tenant'        => isset( $raw['tenant'] ) && '' !== trim( $raw['tenant'] )
-					? sanitize_text_field( $raw['tenant'] )
-					: 'common',
+				'tenant'        => $tenant,
 			);
 		}
 

@@ -656,12 +656,34 @@ function mcr_settings_tab_url( $tab ) {
 				<tr>
 					<th scope="row"><label for="mcr-ms-tenant"><?php esc_html_e( 'Account Types', 'music-club-registrations' ); ?></label></th>
 					<td>
-						<select id="mcr-ms-tenant" name="excel_app[tenant]">
-							<option value="common" <?php selected( $excel_app['tenant'], 'common' ); ?>><?php esc_html_e( 'Any Microsoft 365 organization or personal account (recommended)', 'music-club-registrations' ); ?></option>
+						<?php
+						$known_tenant_values = array( 'common', 'organizations', 'consumers' );
+						$is_specific_tenant  = ! in_array( $excel_app['tenant'], $known_tenant_values, true );
+						?>
+						<select id="mcr-ms-tenant" name="excel_app[tenant_type]">
+							<option value="common" <?php selected( $excel_app['tenant'], 'common' ); ?>><?php esc_html_e( 'Any Microsoft 365 organization or personal account', 'music-club-registrations' ); ?></option>
 							<option value="organizations" <?php selected( $excel_app['tenant'], 'organizations' ); ?>><?php esc_html_e( 'Any Microsoft 365 organization only', 'music-club-registrations' ); ?></option>
 							<option value="consumers" <?php selected( $excel_app['tenant'], 'consumers' ); ?>><?php esc_html_e( 'Personal Microsoft accounts only', 'music-club-registrations' ); ?></option>
+							<option value="specific" <?php selected( $is_specific_tenant, true ); ?>><?php esc_html_e( 'A specific organization (single-tenant app)', 'music-club-registrations' ); ?></option>
 						</select>
-						<p class="description"><?php esc_html_e( 'Matches the "Supported account types" chosen when creating the app registration.', 'music-club-registrations' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Must match the "Supported account types" chosen when creating the app registration in Microsoft Entra.', 'music-club-registrations' ); ?></p>
+
+						<p>
+							<label for="mcr-ms-tenant-id"><?php esc_html_e( 'Tenant ID or domain', 'music-club-registrations' ); ?></label><br />
+							<input
+								type="text"
+								id="mcr-ms-tenant-id"
+								name="excel_app[tenant_id]"
+								value="<?php echo esc_attr( $is_specific_tenant ? $excel_app['tenant'] : '' ); ?>"
+								class="regular-text"
+								placeholder="<?php esc_attr_e( 'e.g. contoso.onmicrosoft.com or a2b1c3d4-...-guid', 'music-club-registrations' ); ?>"
+							/>
+						</p>
+						<p class="description">
+							<?php esc_html_e( 'Only required when "A specific organization" is selected above. Find this under Entra ID > Overview ("Tenant ID"), or use your organization\'s verified domain.', 'music-club-registrations' ); ?>
+							<strong><?php esc_html_e( 'Important:', 'music-club-registrations' ); ?></strong>
+							<?php esc_html_e( 'if your app registration was created as single-tenant (the default in Entra), you must select this option and fill in your Tenant ID — using "Any organization" with a single-tenant app causes Microsoft to reject the connection with error AADSTS50194.', 'music-club-registrations' ); ?>
+						</p>
 					</td>
 				</tr>
 			</table>

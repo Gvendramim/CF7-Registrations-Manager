@@ -159,5 +159,27 @@
 				},
 			} );
 		}
+
+		var photoPermissionCanvas = document.getElementById( 'mcr-photo-permission-chart' );
+		if ( photoPermissionCanvas && data.photoPermissionChart ) {
+			new window.Chart( photoPermissionCanvas.getContext( '2d' ), {
+				type: 'doughnut',
+				data: {
+					labels: data.photoPermissionChart.labels,
+					datasets: [
+						{
+							data: data.photoPermissionChart.values,
+							backgroundColor: [ '#1a7f37', '#c62828' ],
+						},
+					],
+				},
+				options: {
+					responsive: true,
+					plugins: {
+						legend: { position: 'bottom' },
+					},
+				},
+			} );
+		}
 	} );
 } )();

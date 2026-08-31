@@ -75,6 +75,7 @@ class Database {
 			child_class VARCHAR(100) NOT NULL DEFAULT '',
 			interests TEXT NULL,
 			total_amount VARCHAR(50) NOT NULL DEFAULT '',
+			photo_permission VARCHAR(10) NOT NULL DEFAULT '',
 			additional_message TEXT NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			internal_notes LONGTEXT NULL,
@@ -91,7 +92,8 @@ class Database {
 			KEY child_name (child_name),
 			KEY status (status),
 			KEY created_at (created_at),
-			KEY excel_sync_status (excel_sync_status)
+			KEY excel_sync_status (excel_sync_status),
+			KEY photo_permission (photo_permission)
 		) {$charset_collate};";
 
 		$sql_history = "CREATE TABLE {$history} (
@@ -187,6 +189,7 @@ class Database {
 			'child_class'         => '',
 			'interests'           => '',
 			'total_amount'        => '',
+			'photo_permission'    => '',
 			'additional_message'  => '',
 			'status'              => 'new',
 			'internal_notes'      => '',
@@ -211,13 +214,14 @@ class Database {
 				'child_class'          => $data['child_class'],
 				'interests'            => $data['interests'],
 				'total_amount'         => $data['total_amount'],
+				'photo_permission'     => $data['photo_permission'],
 				'additional_message'   => $data['additional_message'],
 				'status'               => $data['status'],
 				'internal_notes'       => $data['internal_notes'],
 				'created_at'           => $now,
 				'updated_at'           => $now,
 			),
-			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
@@ -705,17 +709,18 @@ class Database {
 		$table = self::table_name();
 
 		$defaults = array(
-			'search'   => '',
-			'status'   => '',
-			'orderby'  => 'created_at',
-			'order'    => 'DESC',
-			'per_page' => 20,
-			'page'     => 1,
+			'search'           => '',
+			'status'           => '',
+			'photo_permission' => '',
+			'orderby'          => 'created_at',
+			'order'            => 'DESC',
+			'per_page'         => 20,
+			'page'             => 1,
 		);
 
 		$args = wp_parse_args( $args, $defaults );
 
-		$allowed_orderby = array( 'id', 'registration_number', 'child_name', 'parent_name', 'parent_email', 'phone', 'child_class', 'created_at', 'status' );
+		$allowed_orderby = array( 'id', 'registration_number', 'child_name', 'parent_name', 'parent_email', 'phone', 'child_class', 'created_at', 'status', 'photo_permission' );
 		$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'created_at';
 		$order            = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
 
@@ -725,6 +730,11 @@ class Database {
 		if ( ! empty( $args['status'] ) && mcr_is_valid_status( $args['status'] ) ) {
 			$where[]  = 'status = %s';
 			$values[] = $args['status'];
+		}
+
+		if ( ! empty( $args['photo_permission'] ) && in_array( $args['photo_permission'], array( 'Yes', 'No' ), true ) ) {
+			$where[]  = 'photo_permission = %s';
+			$values[] = $args['photo_permission'];
 		}
 
 		if ( ! empty( $args['search'] ) ) {
@@ -783,8 +793,9 @@ class Database {
 		$table = self::table_name();
 
 		$defaults = array(
-			'search' => '',
-			'status' => '',
+			'search'           => '',
+			'status'           => '',
+			'photo_permission' => '',
 		);
 		$args     = wp_parse_args( $args, $defaults );
 
@@ -794,6 +805,11 @@ class Database {
 		if ( ! empty( $args['status'] ) && mcr_is_valid_status( $args['status'] ) ) {
 			$where[]  = 'status = %s';
 			$values[] = $args['status'];
+		}
+
+		if ( ! empty( $args['photo_permission'] ) && in_array( $args['photo_permission'], array( 'Yes', 'No' ), true ) ) {
+			$where[]  = 'photo_permission = %s';
+			$values[] = $args['photo_permission'];
 		}
 
 		if ( ! empty( $args['search'] ) ) {
@@ -1053,6 +1069,28 @@ class Database {
 			'total_revenue'      => $total,
 			'average'            => $count > 0 ? ( $total / $count ) : 0.0,
 			'count_with_amount' => $count,
+		);
+	}
+
+	/**
+	 * Retorna a contagem de inscrições por resposta de "Photography
+	 * Permission" ("Yes"/"No"), usada pelos cartões e pelo gráfico
+	 * opcionais do Dashboard.
+	 *
+	 * @return array{yes: int, no: int, total: int}
+	 */
+	public static function get_photo_permission_stats() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$yes = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE photo_permission = %s", 'Yes' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$no  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE photo_permission = %s", 'No' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return array(
+			'yes'   => $yes,
+			'no'    => $no,
+			'total' => $yes + $no,
 		);
 	}
 

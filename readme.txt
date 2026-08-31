@@ -1,10 +1,10 @@
 === CF7 Registrations Manager ===
-Contributors: GabrielVendramim
-Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel, microsoft 365
+Contributors: musicclubdevteam
+Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 8.1
-Stable tag: 2.4.0
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,7 +22,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 **Native CSV & Excel export** — CSV uses UTF-8 BOM and an automatically detected delimiter (`;` for locales like pt_BR, de_DE, fr_FR; `,` for en_US), so it always opens correctly in Excel Windows, Excel Online, and LibreOffice. Excel (.xlsx) files are generated with a dependency-free native writer (uses PHP's built-in ZipArchive extension) — no library installation, ever. If ZipArchive is unavailable on a host, the plugin shows a friendly notice and CSV export keeps working; it never throws a fatal error.
 
-**Excel Online integration** — Excel Online integration — securely connect through Microsoft Graph API using OAuth 2.0. Clients simply click Connect Microsoft 365, sign in, grant permission, and choose the workbook, worksheet and Excel Table. No Tenant ID, Client ID, Client Secret or technical resource IDs are required during the normal client setup.
+**Excel Online integration** — connect via the Microsoft Graph API (Tenant ID, Client ID, Client Secret, Workbook, Worksheet, Table) with a one-click "Test Connection" button. Once connected, every new registration is pushed to the configured table automatically.
 
 **REST API** — auto-registered at `cf7-registrations/v1`, with `GET registrations`, `GET registration/{id}`, `POST registration/status`, `DELETE registration/{id}`, `GET export.csv` and `GET export.xlsx`. Authenticate with a simple API key (auto-generated) via header or query parameter — ideal for Excel, Power BI, or other external tools. Includes built-in rate limiting.
 
@@ -36,7 +36,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 == Installation ==
 
-1. Upload the `cf7-registrations-manager` folder to `/wp-content/plugins/`.
+1. Upload the `music-club-registrations` folder to `/wp-content/plugins/`.
 2. Activate the plugin from the "Plugins" menu.
 3. The Setup Wizard opens automatically — follow the six steps (environment check, form selection, field mapping, database setup, API key, final test).
 4. That's it. No Composer, no terminal, no manual library installation.
@@ -64,6 +64,21 @@ Yes. Every endpoint requires a valid API key (sent as a header or query paramete
 Only if you explicitly enable "Remove Data" on the Settings screen. By default, all data is preserved.
 
 == Changelog ==
+
+= 2.5.0 =
+* Added support for a new required field: Photography Permission (`photo-permission`, "Yes"/"No") — tracked through capture, database, field mapping, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, the registration detail screen ("Permissions" section with ✅/❌ indicators), the Registrations list (sortable, filterable column), and optional Dashboard cards + chart.
+* Database: query_registrations()/get_all_ids() now support filtering by photo_permission, reused by the list filter and by filtered exports.
+* Safe, additive, idempotent database migration for the new column; fully backward-compatible with forms and registrations that don't have this field.
+
+= 2.4.3 =
+* Fixed Microsoft OAuth connection failing with "AADSTS50194" for single-tenant app registrations (the default when creating a new app in Microsoft Entra). Added a "A specific organization (single-tenant app)" option under Settings > Advanced > Microsoft Integration, where the exact Tenant ID or verified domain can be entered — required whenever the Entra app was not explicitly configured as multi-tenant.
+
+= 2.4.2 =
+* The "Microsoft OAuth authorization was cancelled or denied" log entry now includes Microsoft's detailed error_description (previously captured but silently discarded), making the real cause of a failed connection visible instead of just a generic error code.
+* Added an automatic check and log entry when the site is not using HTTPS, since Microsoft requires a secure redirect URI and will otherwise reject the request with "invalid_request".
+
+= 2.4.1 =
+* Fixed a bug in the "Connect Microsoft 365" flow where the authorization URL's parameters (redirect_uri, scope) were being URL-encoded twice, corrupting the request and causing Microsoft to reject it with "invalid_request". Connecting a Microsoft account now works correctly.
 
 = 2.4.0 =
 * Added support for a new optional field: Total Amount (`total-amount`) — the exact value calculated by the form (e.g. "€280") is captured and tracked through the database, field mapping, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, and the registration detail screen ("Payment Information").

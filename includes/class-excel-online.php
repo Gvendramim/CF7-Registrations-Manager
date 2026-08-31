@@ -79,6 +79,7 @@ class Excel_Online {
 			'child_class'          => array( 'class', 'classroom', 'grade' ),
 			'interests'            => array( 'program', 'interests', 'activity', 'programs' ),
 			'total_amount'         => array( 'totalamount', 'total', 'amount', 'price', 'cost', 'payment', 'fee' ),
+			'photo_permission'     => array( 'photopermission', 'photographypermission', 'permission', 'photo', 'picture', 'image', 'photography' ),
 			'additional_message'   => array( 'message', 'additionalmessage', 'notes', 'comments' ),
 			'status'               => array( 'status' ),
 			'created_at'           => array( 'createdat', 'date', 'submitted', 'registrationdate', 'created' ),

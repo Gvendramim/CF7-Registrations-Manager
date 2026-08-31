@@ -50,6 +50,7 @@ class List_Table extends \WP_List_Table {
 			'parent_email'         => __( 'Primary Email', 'music-club-registrations' ),
 			'phone'                => __( 'Primary Phone', 'music-club-registrations' ),
 			'interests'            => __( 'Interests', 'music-club-registrations' ),
+			'photo_permission'     => __( 'Photo Permission', 'music-club-registrations' ),
 			'created_at'           => __( 'Date', 'music-club-registrations' ),
 			'status'               => __( 'Status', 'music-club-registrations' ),
 			'excel_sync_status'    => __( 'Excel Sync', 'music-club-registrations' ),
@@ -69,6 +70,7 @@ class List_Table extends \WP_List_Table {
 			'parent_email'         => array( 'parent_email', false ),
 			'created_at'           => array( 'created_at', true ),
 			'status'               => array( 'status', false ),
+			'photo_permission'     => array( 'photo_permission', false ),
 		);
 	}
 
@@ -230,7 +232,22 @@ class List_Table extends \WP_List_Table {
 	}
 
 	/**
-	 * Exibe os filtros extras (por status) acima da tabela.
+	 * Renderiza a coluna de permissão de fotografia como um indicador
+	 * visual (✅ Yes / ❌ No), com um traço quando não informada
+	 * (formulários que não possuem este campo, ou registros antigos).
+	 *
+	 * @param array $item Linha atual.
+	 * @return string
+	 */
+	protected function column_photo_permission( $item ) {
+		$badge = mcr_render_photo_permission_badge( $item['photo_permission'] ?? '' );
+
+		return $badge ?: '&mdash;';
+	}
+
+	/**
+	 * Exibe os filtros extras (por status e por permissão de fotografia)
+	 * acima da tabela.
 	 *
 	 * @param string $which 'top' ou 'bottom'.
 	 * @return void
@@ -241,6 +258,7 @@ class List_Table extends \WP_List_Table {
 		}
 
 		$current_status = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+		$current_photo  = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
 		?>
 		<div class="alignleft actions">
 			<label for="mcr-filter-status" class="screen-reader-text">
@@ -254,6 +272,16 @@ class List_Table extends \WP_List_Table {
 					</option>
 				<?php endforeach; ?>
 			</select>
+
+			<label for="mcr-filter-photo-permission" class="screen-reader-text">
+				<?php esc_html_e( 'Filter by photography permission', 'music-club-registrations' ); ?>
+			</label>
+			<select name="photo_permission" id="mcr-filter-photo-permission">
+				<option value=""><?php esc_html_e( 'All photo permissions', 'music-club-registrations' ); ?></option>
+				<option value="Yes" <?php selected( $current_photo, 'Yes' ); ?>><?php esc_html_e( 'Yes', 'music-club-registrations' ); ?></option>
+				<option value="No" <?php selected( $current_photo, 'No' ); ?>><?php esc_html_e( 'No', 'music-club-registrations' ); ?></option>
+			</select>
+
 			<?php submit_button( __( 'Filter', 'music-club-registrations' ), '', 'filter_action', false ); ?>
 		</div>
 		<?php
@@ -270,19 +298,21 @@ class List_Table extends \WP_List_Table {
 		$per_page     = 20;
 		$current_page = $this->get_pagenum();
 
-		$search = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
-		$status = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+		$search           = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
+		$status           = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+		$photo_permission = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
 		$orderby = isset( $_REQUEST['orderby'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['orderby'] ) ) : 'created_at';
 		$order   = isset( $_REQUEST['order'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['order'] ) ) : 'DESC';
 
 		$result = Database::query_registrations(
 			array(
-				'search'   => $search,
-				'status'   => $status,
-				'orderby'  => $orderby,
-				'order'    => $order,
-				'per_page' => $per_page,
-				'page'     => $current_page,
+				'search'           => $search,
+				'status'           => $status,
+				'photo_permission' => $photo_permission,
+				'orderby'          => $orderby,
+				'order'            => $order,
+				'per_page'         => $per_page,
+				'page'             => $current_page,
 			)
 		);
 

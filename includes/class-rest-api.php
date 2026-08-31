@@ -541,6 +541,7 @@ class REST_API {
 			'child_class'          => $registration['child_class'],
 			'interests'            => mcr_interests_to_array( $registration['interests'] ),
 			'total_amount'         => $registration['total_amount'] ?? '',
+			'photo_permission'     => $registration['photo_permission'] ?? '',
 			'additional_message'   => $registration['additional_message'],
 			'status'               => $registration['status'],
 			'status_label'         => mcr_get_status_label( $registration['status'] ),

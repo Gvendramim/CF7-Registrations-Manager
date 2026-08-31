@@ -51,13 +51,15 @@ class Export {
 		}
 
 		$args = array(
-			'search' => '',
-			'status' => '',
+			'search'           => '',
+			'status'           => '',
+			'photo_permission' => '',
 		);
 
 		if ( 'filtered' === $scope ) {
-			$args['search'] = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
-			$args['status'] = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+			$args['search']           = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
+			$args['status']           = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+			$args['photo_permission'] = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
 		}
 
 		$ids = Database::get_all_ids( $args );
@@ -106,6 +108,7 @@ class Export {
 			'child_class'          => __( 'Class', 'music-club-registrations' ),
 			'interests'            => __( 'Interests', 'music-club-registrations' ),
 			'total_amount'         => __( 'Total Amount', 'music-club-registrations' ),
+			'photo_permission'     => __( 'Photography Permission', 'music-club-registrations' ),
 			'additional_message'   => __( 'Additional Message', 'music-club-registrations' ),
 			'status'               => __( 'Status', 'music-club-registrations' ),
 			'created_at'           => __( 'Created At', 'music-club-registrations' ),

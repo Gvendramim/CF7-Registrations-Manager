@@ -231,3 +231,22 @@ function mcr_render_excel_sync_badge( $status ) {
 		esc_html( $meta['label'] )
 	);
 }
+
+/**
+ * Renderiza um indicador visual (✅/❌) para o valor do campo "Photography
+ * Permission" ("Yes"/"No"), usado na listagem e na tela de detalhes.
+ *
+ * @param string $value Valor exato armazenado ("Yes", "No", ou vazio).
+ * @return string Marcação HTML já escapada. String vazia se não houver valor.
+ */
+function mcr_render_photo_permission_badge( $value ) {
+	if ( 'Yes' === $value ) {
+		return '<span class="mcr-photo-permission-badge mcr-photo-permission-yes">✅ ' . esc_html__( 'Yes', 'music-club-registrations' ) . '</span>';
+	}
+
+	if ( 'No' === $value ) {
+		return '<span class="mcr-photo-permission-badge mcr-photo-permission-no">❌ ' . esc_html__( 'No', 'music-club-registrations' ) . '</span>';
+	}
+
+	return '';
+}

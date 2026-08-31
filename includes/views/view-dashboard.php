@@ -10,6 +10,8 @@
  * @var bool   $excel_connected     Se a integração com o Excel Online está totalmente configurada.
  * @var bool   $show_revenue_stats  Se os cartões financeiros devem ser exibidos (campo Total Amount mapeado).
  * @var array|null $revenue_stats   Indicadores financeiros (Database::get_revenue_stats()), ou null quando não aplicável.
+ * @var bool   $show_photo_permission_stats Se os cartões de Photography Permission devem ser exibidos (campo mapeado).
+ * @var array|null $photo_permission_stats  Indicadores de Database::get_photo_permission_stats(), ou null quando não aplicável.
  *
  * @package Music_Club_Registrations
  */
@@ -88,11 +90,31 @@ $statuses = mcr_get_statuses();
 		</p>
 	<?php endif; ?>
 
+	<?php if ( $show_photo_permission_stats && $photo_permission_stats ) : ?>
+		<h2><?php esc_html_e( 'Photography Permission', 'music-club-registrations' ); ?></h2>
+		<div class="mcr-stats-grid">
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value"><?php echo esc_html( number_format_i18n( $photo_permission_stats['yes'] ) ); ?></span>
+				<span class="mcr-stat-label">✅ <?php esc_html_e( 'Yes', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value"><?php echo esc_html( number_format_i18n( $photo_permission_stats['no'] ) ); ?></span>
+				<span class="mcr-stat-label">❌ <?php esc_html_e( 'No', 'music-club-registrations' ); ?></span>
+			</div>
+		</div>
+	<?php endif; ?>
+
 	<div class="mcr-charts-grid">
 		<div class="mcr-chart-card">
 			<h2><?php esc_html_e( 'Registrations (Last 30 Days)', 'music-club-registrations' ); ?></h2>
 			<canvas id="mcr-timeline-chart" height="110"></canvas>
 		</div>
+		<?php if ( $show_photo_permission_stats && $photo_permission_stats && $photo_permission_stats['total'] > 0 ) : ?>
+			<div class="mcr-chart-card">
+				<h2><?php esc_html_e( 'Photography Permission Distribution', 'music-club-registrations' ); ?></h2>
+				<canvas id="mcr-photo-permission-chart" height="110"></canvas>
+			</div>
+		<?php endif; ?>
 		<div class="mcr-chart-card">
 			<h2><?php esc_html_e( 'Status Distribution', 'music-club-registrations' ); ?></h2>
 			<canvas id="mcr-status-chart" height="110"></canvas>

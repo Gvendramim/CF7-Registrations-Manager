@@ -169,13 +169,14 @@ class Backup {
 					'child_class'          => sanitize_text_field( $item['child_class'] ?? '' ),
 					'interests'            => sanitize_text_field( $item['interests'] ?? '' ),
 					'total_amount'         => sanitize_text_field( $item['total_amount'] ?? '' ),
+					'photo_permission'     => sanitize_text_field( $item['photo_permission'] ?? '' ),
 					'additional_message'   => sanitize_textarea_field( $item['additional_message'] ?? '' ),
 					'status'               => mcr_is_valid_status( $item['status'] ?? '' ) ? $item['status'] : 'new',
 					'internal_notes'       => sanitize_textarea_field( $item['internal_notes'] ?? '' ),
 					'created_at'           => ! empty( $item['created_at'] ) ? $item['created_at'] : current_time( 'mysql' ),
 					'updated_at'           => current_time( 'mysql' ),
 				),
-				array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+				array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 			);
 
 			++$restored;
