@@ -220,8 +220,15 @@ class Settings {
 
 			$settings['excel_app'] = array(
 				'client_id'     => isset( $raw['client_id'] ) ? sanitize_text_field( $raw['client_id'] ) : '',
+				// O Client Secret é cifrado antes de ser salvo (ver
+				// Crypto::encrypt()) - nunca fica em texto plano no banco
+				// de dados. Quando o campo é deixado em branco (mantendo o
+				// segredo atual), $current_secret já está no formato
+				// armazenado (cifrado ou, em instalações antigas, texto
+				// plano legado) e é preservado como está, sem recifrar
+				// desnecessariamente.
 				'client_secret' => isset( $raw['client_secret'] ) && '' !== $raw['client_secret']
-					? sanitize_text_field( $raw['client_secret'] )
+					? Crypto::encrypt( sanitize_text_field( $raw['client_secret'] ) )
 					: $current_secret,
 				'tenant'        => $tenant,
 			);
@@ -279,6 +286,20 @@ class Settings {
 		$app = self::get( 'excel_app', array() );
 
 		return ! empty( $app['client_id'] ) && ! empty( $app['client_secret'] );
+	}
+
+	/**
+	 * Retorna o Client Secret do app Microsoft já decifrado, pronto para
+	 * uso nas chamadas OAuth (troca/renovação de tokens). É o único ponto
+	 * do plugin que lida com o valor em texto plano - em qualquer outro
+	 * lugar, o segredo permanece cifrado.
+	 *
+	 * @return string
+	 */
+	public static function get_excel_client_secret() {
+		$app = self::get( 'excel_app', array() );
+
+		return Crypto::decrypt( $app['client_secret'] ?? '' );
 	}
 
 	/**

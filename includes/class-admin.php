@@ -68,6 +68,7 @@ class Admin {
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
 		add_action( 'admin_post_mcr_download_logs', array( $this, 'handle_download_logs' ) );
 		add_action( 'admin_post_mcr_test_rest_api', array( $this, 'handle_test_rest_api' ) );
+		add_action( 'admin_post_mcr_rename_interest', array( $this, 'handle_rename_interest' ) );
 		add_action( 'current_screen', array( $this, 'register_contextual_help' ) );
 	}
 
@@ -470,6 +471,11 @@ class Admin {
 		$backup_notice = get_transient( 'mcr_backup_notice_' . get_current_user_id() );
 		delete_transient( 'mcr_backup_notice_' . get_current_user_id() );
 
+		// Dados para a seção "Rename Program / Interest" (aba General).
+		$distinct_interests   = 'general' === $active_tab ? Database::get_distinct_interests() : array();
+		$rename_interest_result = get_transient( 'mcr_rename_interest_result_' . get_current_user_id() );
+		delete_transient( 'mcr_rename_interest_result_' . get_current_user_id() );
+
 		// Dados exclusivos da aba "Excel Online" (só precisam ser
 		// calculados quando ela está ativa, para evitar chamadas
 		// desnecessárias à Microsoft Graph API nas demais abas).
@@ -777,6 +783,46 @@ class Admin {
 		}
 
 		set_transient( 'mcr_rest_test_result_' . get_current_user_id(), $result, 60 );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SETTINGS_SLUG . '&tab=general' ) );
+		exit;
+	}
+
+	/**
+	 * Processa o botão "Rename Everywhere" da seção "Rename Program /
+	 * Interest": substitui um valor antigo do campo "interests" por um
+	 * novo, em todas as inscrições que o contêm, unificando o histórico.
+	 *
+	 * @return void
+	 */
+	public function handle_rename_interest() {
+		if ( ! mcr_current_user_can_manage() ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'music-club-registrations' ) );
+		}
+
+		check_admin_referer( 'mcr_rename_interest' );
+
+		$old_value = isset( $_POST['old_interest'] ) ? sanitize_text_field( wp_unslash( $_POST['old_interest'] ) ) : '';
+		$new_value = isset( $_POST['new_interest'] ) ? sanitize_text_field( wp_unslash( $_POST['new_interest'] ) ) : '';
+
+		$updated = 0;
+
+		if ( '' !== $old_value && '' !== $new_value ) {
+			$updated = Database::rename_interest_everywhere( $old_value, $new_value );
+
+			Logger::info(
+				'settings',
+				sprintf(
+					'Renamed program/interest "%s" to "%s" across %d registration(s).',
+					$old_value,
+					$new_value,
+					$updated
+				),
+				get_current_user_id()
+			);
+		}
+
+		set_transient( 'mcr_rename_interest_result_' . get_current_user_id(), $updated, 60 );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SETTINGS_SLUG . '&tab=general' ) );
 		exit;

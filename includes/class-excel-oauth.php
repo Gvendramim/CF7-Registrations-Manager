@@ -113,6 +113,19 @@ class Excel_OAuth {
 	 * @return array Estado completo após a atualização.
 	 */
 	public static function update_connection( array $data ) {
+		// access_token e refresh_token são sempre cifrados antes de serem
+		// persistidos - nunca ficam em texto plano no banco de dados.
+		// Todos os pontos do plugin que chamam update_connection() devem
+		// passar os tokens em texto plano (como recebidos da Microsoft);
+		// a cifragem acontece só aqui, de forma centralizada.
+		if ( isset( $data['access_token'] ) ) {
+			$data['access_token'] = Crypto::encrypt( $data['access_token'] );
+		}
+
+		if ( isset( $data['refresh_token'] ) ) {
+			$data['refresh_token'] = Crypto::encrypt( $data['refresh_token'] );
+		}
+
 		$connection = wp_parse_args( $data, self::get_connection() );
 
 		update_option( self::OPTION_NAME, $connection );
@@ -313,7 +326,7 @@ class Excel_OAuth {
 				'timeout' => 20,
 				'body'    => array(
 					'client_id'     => $app['client_id'],
-					'client_secret' => $app['client_secret'],
+					'client_secret' => Settings::get_excel_client_secret(),
 					'grant_type'    => 'authorization_code',
 					'code'          => $code,
 					'redirect_uri'  => self::get_redirect_uri(),
@@ -340,11 +353,14 @@ class Excel_OAuth {
 		}
 
 		// Ainda válido por pelo menos 2 minutos - reutiliza sem chamar a Microsoft.
+		// O access_token fica cifrado no banco; é decifrado apenas aqui,
+		// no exato momento do uso.
 		if ( $connection['token_expires_at'] > ( time() + 120 ) ) {
-			return $connection['access_token'];
+			return Crypto::decrypt( $connection['access_token'] );
 		}
 
-		$app = Settings::get( 'excel_app' );
+		$app            = Settings::get( 'excel_app' );
+		$refresh_token  = Crypto::decrypt( $connection['refresh_token'] );
 
 		$response = wp_remote_post(
 			sprintf( 'https://login.microsoftonline.com/%s/oauth2/v2.0/token', rawurlencode( $app['tenant'] ) ),
@@ -352,9 +368,9 @@ class Excel_OAuth {
 				'timeout' => 20,
 				'body'    => array(
 					'client_id'     => $app['client_id'],
-					'client_secret' => $app['client_secret'],
+					'client_secret' => Settings::get_excel_client_secret(),
 					'grant_type'    => 'refresh_token',
-					'refresh_token' => $connection['refresh_token'],
+					'refresh_token' => $refresh_token,
 					'scope'         => self::SCOPES,
 				),
 			)
@@ -391,7 +407,7 @@ class Excel_OAuth {
 				'access_token'     => $result['access_token'],
 				// A Microsoft às vezes retorna um novo refresh_token junto
 				// com o access_token renovado; se não vier, mantemos o atual.
-				'refresh_token'    => ! empty( $result['refresh_token'] ) ? $result['refresh_token'] : $connection['refresh_token'],
+				'refresh_token'    => ! empty( $result['refresh_token'] ) ? $result['refresh_token'] : $refresh_token,
 				'token_expires_at' => time() + absint( $result['expires_in'] ),
 			)
 		);

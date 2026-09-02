@@ -1032,8 +1032,113 @@ class Database {
 	}
 
 	/**
+	 * Retorna a lista de todos os valores distintos já usados no campo
+	 * "interests" (programas/interesses), em ordem alfabética. Usada para
+	 * popular o seletor "Rename Program / Interest" na tela de
+	 * configurações, permitindo ao administrador escolher um valor
+	 * antigo para renomear em massa.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function get_distinct_interests() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$values = $wpdb->get_col( "SELECT interests FROM {$table} WHERE interests != ''" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$distinct = array();
+		foreach ( $values ?: array() as $interests_string ) {
+			foreach ( mcr_interests_to_array( $interests_string ) as $interest ) {
+				$distinct[ $interest ] = true;
+			}
+		}
+
+		$list = array_keys( $distinct );
+		sort( $list, SORT_STRING | SORT_FLAG_CASE );
+
+		return $list;
+	}
+
+	/**
+	 * Renomeia um valor do campo "interests" em todas as inscrições que o
+	 * contêm, preservando os demais interesses selecionados em cada
+	 * registro. Usado quando o texto de uma opção do formulário muda
+	 * (ex: horário ou nome do programa foi ajustado no Contact Form 7),
+	 * para unificar o histórico com o nome atual em vez de deixá-lo
+	 * "dividido" entre o nome antigo e o novo nos relatórios e no
+	 * Dashboard.
+	 *
+	 * Não afeta a integração com o Excel Online: linhas já sincronizadas
+	 * anteriormente mantêm o texto antigo na planilha até uma próxima
+	 * sincronização daquela inscrição específica.
+	 *
+	 * @param string $old_value Valor exato a ser substituído.
+	 * @param string $new_value Novo valor.
+	 * @return int Número de inscrições atualizadas.
+	 */
+	public static function rename_interest_everywhere( $old_value, $new_value ) {
+		global $wpdb;
+
+		$old_value = trim( (string) $old_value );
+		$new_value = trim( (string) $new_value );
+
+		if ( '' === $old_value || '' === $new_value || $old_value === $new_value ) {
+			return 0;
+		}
+
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, interests FROM {$table} WHERE interests != '' AND (interests = %s OR interests LIKE %s OR interests LIKE %s OR interests LIKE %s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$old_value,
+				$wpdb->esc_like( $old_value . ', ' ) . '%',
+				'%' . $wpdb->esc_like( ', ' . $old_value . ', ' ) . '%',
+				'%' . $wpdb->esc_like( ', ' . $old_value )
+			),
+			ARRAY_A
+		);
+
+		$updated = 0;
+
+		foreach ( $rows ?: array() as $row ) {
+			$values = mcr_interests_to_array( $row['interests'] );
+			$changed = false;
+
+			foreach ( $values as $index => $value ) {
+				if ( $value === $old_value ) {
+					$values[ $index ] = $new_value;
+					$changed = true;
+				}
+			}
+
+			if ( ! $changed ) {
+				continue;
+			}
+
+			// Remove duplicatas (ex: a inscrição já tinha selecionado tanto
+			// o nome antigo quanto o novo, agora coincidem) preservando a
+			// ordem original.
+			$values = array_values( array_unique( $values ) );
+
+			$wpdb->update(
+				$table,
+				array( 'interests' => mcr_interests_to_string( $values ) ),
+				array( 'id' => absint( $row['id'] ) ),
+				array( '%s' ),
+				array( '%d' )
+			);
+
+			++$updated;
+		}
+
+		return $updated;
+	}
+
+	/**
 	 * Calcula indicadores financeiros simples (receita total e valor
-	 * médio por inscrição) a partir do campo `total_amount`, usado pelos
 	 * cartões opcionais "Total Revenue" e "Average Registration Value" do
 	 * Dashboard.
 	 *

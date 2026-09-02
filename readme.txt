@@ -1,5 +1,5 @@
 === CF7 Registrations Manager ===
-Contributors: musicclubdevteam
+Contributors: Gabriel Vendramim 
 Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel
 Requires at least: 6.0
 Tested up to: 6.6
