@@ -368,6 +368,94 @@ class Database {
 	}
 
 	/**
+	 * Atualiza um conjunto de campos editáveis de uma inscrição (usado
+	 * pela tela de detalhes, quando o administrador corrige/completa
+	 * dados como e-mail, telefone, nome etc.). Apenas os campos
+	 * efetivamente enviados em `$fields` são considerados; apenas os que
+	 * realmente mudaram de valor são gravados e registrados no
+	 * histórico de alterações - evita ruído no histórico quando o
+	 * administrador salva o formulário sem ter alterado aquele campo
+	 * específico.
+	 *
+	 * @param int   $id       ID da inscrição.
+	 * @param array $fields   Campos a atualizar (slot => novo valor). Apenas campos suportados são considerados.
+	 * @param int   $user_id  ID do usuário responsável pela alteração.
+	 * @return bool True em caso de sucesso (inclusive quando nada mudou).
+	 */
+	public static function update_registration( $id, array $fields, $user_id = 0 ) {
+		global $wpdb;
+
+		$current = self::get_registration( $id );
+
+		if ( ! $current ) {
+			return false;
+		}
+
+		// Mapa de campos editáveis permitidos e seu formato para $wpdb->update().
+		// Mantido como uma lista explícita (em vez de aceitar qualquer
+		// chave enviada) para nunca permitir que um campo interno/sensível
+		// (ex: excel_row_reference, id) seja sobrescrito por engano.
+		$editable_fields = array(
+			'child_name'          => '%s',
+			'child_age'           => '%d',
+			'parent_name'         => '%s',
+			'second_parent_name'  => '%s',
+			'parent_email'        => '%s',
+			'phone'               => '%s',
+			'second_parent_email' => '%s',
+			'second_parent_phone' => '%s',
+			'child_class'         => '%s',
+			'interests'           => '%s',
+			'total_amount'        => '%s',
+			'photo_permission'    => '%s',
+			'additional_message'  => '%s',
+		);
+
+		$update  = array();
+		$formats = array();
+
+		foreach ( $editable_fields as $field => $format ) {
+			if ( ! array_key_exists( $field, $fields ) ) {
+				continue;
+			}
+
+			$new_value = $fields[ $field ];
+			$old_value = $current[ $field ];
+
+			// Normaliza para comparação (ex: null de child_age vira '').
+			$old_compare = null === $old_value ? '' : (string) $old_value;
+			$new_compare = null === $new_value ? '' : (string) $new_value;
+
+			if ( $old_compare === $new_compare ) {
+				continue;
+			}
+
+			$update[ $field ] = $new_value;
+			$formats[]        = $format;
+
+			self::log_history( $id, $field, (string) $old_value, (string) $new_value, $user_id );
+		}
+
+		if ( empty( $update ) ) {
+			// Nada mudou - não é um erro, apenas não há o que salvar.
+			return true;
+		}
+
+		$update['updated_at'] = current_time( 'mysql' );
+		$formats[]             = '%s';
+
+		$result = $wpdb->update(
+			self::table_name(),
+			$update,
+			array( 'id' => absint( $id ) ),
+			$formats,
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
 	 * Exclui uma inscrição (e seu histórico associado).
 	 *
 	 * @param int $id ID do registro.

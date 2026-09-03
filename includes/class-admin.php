@@ -862,6 +862,72 @@ class Admin {
 			Database::update_internal_notes( $id, $notes, $user_id );
 		}
 
+		// Demais campos editáveis do cadastro (nome, idade, contatos,
+		// programas, valor, permissão de fotografia, mensagem). Apenas os
+		// campos realmente enviados no formulário são considerados; cada
+		// um é sanitizado de acordo com seu tipo, do mesmo jeito que na
+		// captura original do Contact Form 7.
+		$fields = array();
+
+		if ( isset( $_POST['child_name'] ) ) {
+			$fields['child_name'] = sanitize_text_field( wp_unslash( $_POST['child_name'] ) );
+		}
+
+		if ( isset( $_POST['child_age'] ) ) {
+			$age                  = sanitize_text_field( wp_unslash( $_POST['child_age'] ) );
+			$fields['child_age']  = ( '' !== $age && is_numeric( $age ) && $age >= 3 && $age <= 13 ) ? (int) $age : null;
+		}
+
+		if ( isset( $_POST['parent_name'] ) ) {
+			$fields['parent_name'] = sanitize_text_field( wp_unslash( $_POST['parent_name'] ) );
+		}
+
+		if ( isset( $_POST['second_parent_name'] ) ) {
+			$fields['second_parent_name'] = sanitize_text_field( wp_unslash( $_POST['second_parent_name'] ) );
+		}
+
+		if ( isset( $_POST['parent_email'] ) ) {
+			$fields['parent_email'] = sanitize_email( wp_unslash( $_POST['parent_email'] ) );
+		}
+
+		if ( isset( $_POST['phone'] ) ) {
+			$fields['phone'] = mcr_sanitize_phone( wp_unslash( $_POST['phone'] ) );
+		}
+
+		if ( isset( $_POST['second_parent_email'] ) ) {
+			$fields['second_parent_email'] = sanitize_email( wp_unslash( $_POST['second_parent_email'] ) );
+		}
+
+		if ( isset( $_POST['second_parent_phone'] ) ) {
+			$fields['second_parent_phone'] = mcr_sanitize_phone( wp_unslash( $_POST['second_parent_phone'] ) );
+		}
+
+		if ( isset( $_POST['child_class'] ) ) {
+			$fields['child_class'] = sanitize_text_field( wp_unslash( $_POST['child_class'] ) );
+		}
+
+		if ( isset( $_POST['interests'] ) ) {
+			$raw_interests        = sanitize_text_field( wp_unslash( $_POST['interests'] ) );
+			$fields['interests'] = mcr_interests_to_string( array_map( 'trim', explode( ',', $raw_interests ) ) );
+		}
+
+		if ( isset( $_POST['total_amount'] ) ) {
+			$fields['total_amount'] = sanitize_text_field( wp_unslash( $_POST['total_amount'] ) );
+		}
+
+		if ( isset( $_POST['photo_permission'] ) ) {
+			$value = sanitize_text_field( wp_unslash( $_POST['photo_permission'] ) );
+			$fields['photo_permission'] = in_array( $value, array( 'Yes', 'No' ), true ) ? $value : '';
+		}
+
+		if ( isset( $_POST['additional_message'] ) ) {
+			$fields['additional_message'] = sanitize_textarea_field( wp_unslash( $_POST['additional_message'] ) );
+		}
+
+		if ( ! empty( $fields ) ) {
+			Database::update_registration( $id, $fields, $user_id );
+		}
+
 		$redirect = add_query_arg(
 			array(
 				'page'    => self::DETAIL_SLUG,
