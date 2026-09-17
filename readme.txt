@@ -36,7 +36,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 == Installation ==
 
-1. Upload the `music-club-registrations` folder to `/wp-content/plugins/`.
+1. Upload the `cf7-registrations-manager` folder to `/wp-content/plugins/`.
 2. Activate the plugin from the "Plugins" menu.
 3. The Setup Wizard opens automatically — follow the six steps (environment check, form selection, field mapping, database setup, API key, final test).
 4. That's it. No Composer, no terminal, no manual library installation.
