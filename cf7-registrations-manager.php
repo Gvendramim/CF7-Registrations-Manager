@@ -1,13 +1,17 @@
 <?php
 /**
  * Plugin Name:       CF7 Registrations Manager
- * Description:       Captura e gerencia automaticamente as inscrições enviadas por qualquer formulário do Contact Form 7 escolhido pelo administrador, armazenando os dados em uma tabela própria, com dashboard, mapeamento de campos configurável, painel administrativo completo, sistema de logs, exportação e API REST.
- * Version:           2.5.0
+ * Plugin URI:        https://example.com/cf7-registrations-manager
+ * Description:       Captura e gerencia automaticamente as inscrições enviadas por qualquer formulário do Contact Form 7 escolhido pelo administrador, armazenando os dados em uma tabela própria, com dashboard, mapeamento de campos configurável, painel administrativo completo, sistema de logs, exportação e API REST — sem nenhum ID de formulário ou nome de campo fixo no código.
+ * Version:           2.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Gabriel Vendramim Ferreira
+ * Author URI:        https://example.com
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       music-club-registrations
+ * Domain Path:       /languages
  *
  * @package Music_Club_Registrations
  */
@@ -24,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 
 // Versão do plugin (utilizada para controle de cache de assets e migrações de banco).
-define( 'MCR_VERSION', '2.5.0' );
+define( 'MCR_VERSION', '2.0' );
 
 // Caminhos e URLs úteis.
 define( 'MCR_PLUGIN_FILE', __FILE__ );
@@ -35,10 +39,18 @@ define( 'MCR_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 // Nome das tabelas (sem prefixo, o prefixo é resolvido em runtime via $wpdb->prefix).
 define( 'MCR_TABLE_NAME', 'music_club_registrations' );
 define( 'MCR_HISTORY_TABLE_NAME', 'music_club_registration_history' );
+define( 'MCR_ATTENDANCE_TABLE_NAME', 'music_club_attendance' );
 
 // Versão do schema de banco de dados, usada para acionar dbDelta() em updates futuros.
-define( 'MCR_DB_VERSION', '2.5.0' );
+define( 'MCR_DB_VERSION', '2.0' );
 
+// Se definido como true, o uninstall.php removerá as tabelas e dados do
+// plugin, independentemente da opção configurada na tela de Settings.
+// Esta constante é opcional e serve apenas como uma forma avançada de
+// forçar a remoção (ex: em ambientes de CI/staging) a partir de
+// wp-config.php. Por padrão, a decisão fica inteiramente a cargo da opção
+// "Remove data on uninstall" salva na tela de Settings do plugin - nenhum
+// valor fica fixo no código.
 if ( ! defined( 'MCR_REMOVE_DATA_ON_UNINSTALL' ) ) {
 	define( 'MCR_REMOVE_DATA_ON_UNINSTALL', false );
 }
@@ -49,13 +61,16 @@ if ( ! defined( 'MCR_REMOVE_DATA_ON_UNINSTALL' ) ) {
  * -----------------------------------------------------------------------
  */
 require_once MCR_PLUGIN_DIR . 'includes/helpers.php';
+require_once MCR_PLUGIN_DIR . 'includes/class-crypto.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-settings.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-logger.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-database.php';
+require_once MCR_PLUGIN_DIR . 'includes/class-attendance.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-migrations.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-form-handler.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-list-table.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-admin.php';
+require_once MCR_PLUGIN_DIR . 'includes/class-attendance-admin.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-xlsx-writer.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-export.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-excel-oauth.php';

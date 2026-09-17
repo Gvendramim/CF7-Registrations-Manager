@@ -114,6 +114,19 @@ function mcr_format_registration_number( $id ) {
 }
 
 /**
+ * Gera o identificador de pagamento (ex: "PAY-000001") a partir do mesmo
+ * ID interno da inscrição - cada inscrição tem exatamente um pagamento
+ * associado, então reaproveitar o ID evita a necessidade de uma
+ * sequência numérica própria só para pagamentos.
+ *
+ * @param int $registration_id ID interno da inscrição.
+ * @return string
+ */
+function mcr_format_payment_number( $registration_id ) {
+	return sprintf( 'PAY-%06d', absint( $registration_id ) );
+}
+
+/**
  * Verifica se o usuário atual pode gerenciar as inscrições do Music Club.
  *
  * @return bool
@@ -249,4 +262,19 @@ function mcr_render_photo_permission_badge( $value ) {
 	}
 
 	return '';
+}
+
+/**
+ * Renderiza um indicador visual para o status de confirmação de
+ * pagamento ("paid"/"unpaid"), usado na listagem e na tela de detalhes.
+ *
+ * @param string $status Slug do status ("paid" ou "unpaid").
+ * @return string Marcação HTML já escapada.
+ */
+function mcr_render_payment_status_badge( $status ) {
+	if ( 'paid' === $status ) {
+		return '<span class="mcr-payment-badge mcr-payment-paid">✅ ' . esc_html__( 'Paid', 'music-club-registrations' ) . '</span>';
+	}
+
+	return '<span class="mcr-payment-badge mcr-payment-unpaid">⏳ ' . esc_html__( 'Unpaid', 'music-club-registrations' ) . '</span>';
 }

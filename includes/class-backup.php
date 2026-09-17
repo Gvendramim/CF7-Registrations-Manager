@@ -169,6 +169,8 @@ class Backup {
 					'child_class'          => sanitize_text_field( $item['child_class'] ?? '' ),
 					'interests'            => sanitize_text_field( $item['interests'] ?? '' ),
 					'total_amount'         => sanitize_text_field( $item['total_amount'] ?? '' ),
+					'payment_status'       => in_array( $item['payment_status'] ?? '', array( 'paid', 'unpaid' ), true ) ? $item['payment_status'] : 'unpaid',
+					'payment_confirmed_at' => ! empty( $item['payment_confirmed_at'] ) ? $item['payment_confirmed_at'] : null,
 					'photo_permission'     => sanitize_text_field( $item['photo_permission'] ?? '' ),
 					'additional_message'   => sanitize_textarea_field( $item['additional_message'] ?? '' ),
 					'status'               => mcr_is_valid_status( $item['status'] ?? '' ) ? $item['status'] : 'new',
@@ -176,7 +178,7 @@ class Backup {
 					'created_at'           => ! empty( $item['created_at'] ) ? $item['created_at'] : current_time( 'mysql' ),
 					'updated_at'           => current_time( 'mysql' ),
 				),
-				array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+				array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 			);
 
 			++$restored;

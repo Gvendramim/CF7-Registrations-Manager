@@ -44,13 +44,14 @@
 
 .mcr-detail-wrap .mcr-detail-columns {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 24px;
 	margin-top: 16px;
 	align-items: flex-start;
 }
 
 .mcr-detail-wrap .mcr-detail-main {
-	flex: 1 1 auto;
+	flex: 2 1 500px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	padding: 20px;
@@ -58,7 +59,8 @@
 }
 
 .mcr-detail-wrap .mcr-detail-sidebar {
-	flex: 0 0 300px;
+	flex: 1 1 280px;
+	max-width: 340px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	padding: 20px;
@@ -154,10 +156,28 @@
 	border: 1px solid #dcdcde;
 	border-radius: 4px;
 	padding: 20px;
+	/* Altura fixa do card: sem isso, o Chart.js (mesmo com
+	   maintainAspectRatio: false) não tem um limite real para respeitar,
+	   e gráficos de barra horizontal com muitos itens (ex: vários
+	   programas) cresciam sem controle, ficando enormes na tela. */
+	height: 340px;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 
 .mcr-chart-card h2 {
 	margin-top: 0;
+	flex: 0 0 auto;
+}
+
+.mcr-chart-card canvas {
+	/* Ocupa o espaço restante do card, abaixo do título, sem ultrapassar
+	   a altura fixa acima - o Chart.js respeita este container quando
+	   maintainAspectRatio está desativado. */
+	flex: 1 1 auto;
+	min-height: 0;
+	max-width: 100%;
 }
 
 /* Export panels */
@@ -580,6 +600,40 @@
 	border-top: none;
 }
 
+/* Corrige os campos "vazando" para fora da caixa: a classe padrão do
+   WordPress ".regular-text" tem largura fixa em "em", que não respeita
+   o espaço realmente disponível quando a caixa principal encolhe para
+   abrir espaço às caixas laterais (Excel Sync, Payment Sync, etc). Sem
+   isso, os campos ficavam mais largos que o próprio card, cortados
+   visualmente pela borda da caixa ao lado. */
+.mcr-detail-table input[type="text"],
+.mcr-detail-table input[type="email"],
+.mcr-detail-table input[type="date"],
+.mcr-detail-table select,
+.mcr-detail-table textarea {
+	max-width: 100%;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.mcr-detail-table input[type="number"] {
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.mcr-detail-table td {
+	max-width: 0; /* força a célula a respeitar a largura da coluna da tabela (table-layout abaixo), em vez de crescer pelo conteúdo do input. */
+}
+
+.mcr-detail-table {
+	table-layout: fixed;
+	width: 100%;
+}
+
+.mcr-detail-table th {
+	width: 220px;
+}
+
 .mcr-interests-checklist {
 	list-style: none;
 	margin: 0;
@@ -606,4 +660,167 @@
 
 .mcr-photo-permission-no {
 	color: #c62828;
+}
+
+.mcr-rename-interest-form {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin: 12px 0;
+}
+
+.mcr-rename-interest-form label {
+	font-weight: 600;
+}
+
+.mcr-payment-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.mcr-payment-paid {
+	color: #1a7f37;
+}
+
+.mcr-payment-unpaid {
+	color: #9a6700;
+}
+
+/* Attendance */
+.mcr-attendance-load-form {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin: 16px 0;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 16px;
+	max-width: 700px;
+}
+
+.mcr-attendance-load-form label {
+	font-weight: 600;
+}
+
+.mcr-attendance-table,
+.mcr-attendance-history-table,
+.mcr-attendance-mini-table {
+	margin: 12px 0 20px;
+	max-width: 1100px;
+}
+
+.mcr-attendance-table th,
+.mcr-attendance-table td,
+.mcr-attendance-history-table th,
+.mcr-attendance-history-table td {
+	padding: 8px 12px;
+}
+
+.mcr-attendance-row-present { background: rgba(26, 127, 55, 0.05); }
+.mcr-attendance-row-absent { background: rgba(198, 40, 40, 0.05); }
+.mcr-attendance-row-late { background: rgba(154, 103, 0, 0.05); }
+.mcr-attendance-row-excused { background: rgba(34, 113, 177, 0.05); }
+
+.mcr-attendance-mini-table {
+	font-size: 13px;
+}
+
+.mcr-attendance-mini-note-row td {
+	color: #646970;
+	padding-top: 0;
+	padding-bottom: 8px;
+}
+
+/* Toolbar acima da lista: "Mark all as Present", "Copy from Last
+   Session" e o contador ao vivo. */
+.mcr-attendance-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin: 12px 0;
+}
+
+.mcr-attendance-counter {
+	margin-left: auto;
+	font-size: 14px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.mcr-counter-not-marked {
+	color: #8c8f94;
+	font-weight: 400;
+}
+
+/* O <select> de status continua existindo (é o que realmente é
+   enviado no formulário), mas fica visualmente escondido - os botões
+   P/A/L/E abaixo são a interface real, e ficam sincronizados com ele
+   via JavaScript (assets/js/attendance.js). */
+.mcr-hidden-select {
+	display: none;
+}
+
+.mcr-status-buttons {
+	display: flex;
+	gap: 4px;
+}
+
+.mcr-status-btn {
+	width: 32px;
+	height: 32px;
+	border-radius: 4px;
+	border: 1px solid #dcdcde;
+	background: #fff;
+	color: #646970;
+	font-weight: 700;
+	cursor: pointer;
+	transition: transform 0.05s ease-in-out;
+}
+
+.mcr-status-btn:hover {
+	transform: scale(1.08);
+}
+
+.mcr-status-btn-present.is-active {
+	background: #1a7f37;
+	border-color: #1a7f37;
+	color: #fff;
+}
+
+.mcr-status-btn-absent.is-active {
+	background: #c62828;
+	border-color: #c62828;
+	color: #fff;
+}
+
+.mcr-status-btn-late.is-active {
+	background: #9a6700;
+	border-color: #9a6700;
+	color: #fff;
+}
+
+.mcr-status-btn-excused.is-active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+}
+
+.mcr-absence-warning {
+	display: inline-block;
+	margin-left: 6px;
+	font-size: 11px;
+	font-weight: 700;
+	color: #c62828;
+	background: #fde7e9;
+	border-radius: 10px;
+	padding: 2px 8px;
+	white-space: nowrap;
 }

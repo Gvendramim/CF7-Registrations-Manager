@@ -1,10 +1,10 @@
 === CF7 Registrations Manager ===
-Contributors: Gabriel Vendramim 
+Contributors: Gabriel Vendramim Ferreira
 Tags: contact form 7, registrations, forms, database, export, dashboard, rest api, excel
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 8.1
-Stable tag: 2.5.0
+Stable tag: 2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,59 +65,41 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 
 == Changelog ==
 
-= 2.5.0 =
-* Added support for a new required field: Photography Permission (`photo-permission`, "Yes"/"No") — tracked through capture, database, field mapping, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, the registration detail screen ("Permissions" section with ✅/❌ indicators), the Registrations list (sortable, filterable column), and optional Dashboard cards + chart.
-* Database: query_registrations()/get_all_ids() now support filtering by photo_permission, reused by the list filter and by filtered exports.
-* Safe, additive, idempotent database migration for the new column; fully backward-compatible with forms and registrations that don't have this field.
+= 2.0 =
 
-= 2.4.3 =
-* Fixed Microsoft OAuth connection failing with "AADSTS50194" for single-tenant app registrations (the default when creating a new app in Microsoft Entra). Added a "A specific organization (single-tenant app)" option under Settings > Advanced > Microsoft Integration, where the exact Tenant ID or verified domain can be entered — required whenever the Entra app was not explicitly configured as multi-tenant.
-
-= 2.4.2 =
-* The "Microsoft OAuth authorization was cancelled or denied" log entry now includes Microsoft's detailed error_description (previously captured but silently discarded), making the real cause of a failed connection visible instead of just a generic error code.
-* Added an automatic check and log entry when the site is not using HTTPS, since Microsoft requires a secure redirect URI and will otherwise reject the request with "invalid_request".
-
-= 2.4.1 =
-* Fixed a bug in the "Connect Microsoft 365" flow where the authorization URL's parameters (redirect_uri, scope) were being URL-encoded twice, corrupting the request and causing Microsoft to reject it with "invalid_request". Connecting a Microsoft account now works correctly.
-
-= 2.4.0 =
-* Added support for a new optional field: Total Amount (`total-amount`) — the exact value calculated by the form (e.g. "€280") is captured and tracked through the database, field mapping, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, and the registration detail screen ("Payment Information").
-* Safe, additive, idempotent database migration for the new column; fully backward-compatible with forms and registrations that don't have this field.
-* New optional Dashboard cards — "Total Revenue" and "Average Registration Value" — shown automatically only when the Total Amount field is mapped.
-
-= 2.3.0 =
-* Added support for a new optional field: Parent/Guardian Name (Additional) (`second-parent-name`) — tracked through capture, database, REST API, CSV/XLSX export, Excel Online sync/mapping, backup/restore, and the registration detail screen.
-* Safe, additive, idempotent database migration for the new column; fully backward-compatible with existing registrations and forms that don't have this field.
-
-= 2.2.0 =
-* Added support for new registration fields: Child's Age, Additional Email, and Additional Phone — tracked end-to-end through capture, database, REST API, CSV/XLSX export, Excel Online sync, Dashboard, Registrations list, and the detail screen.
-* Safe, additive, idempotent database migration for the new columns; existing registrations and forms without these fields keep working unchanged.
-* Child's Age is validated (3–13) and exported as a real Excel number; invalid or missing values degrade gracefully to empty, never a fatal error.
-* Excel Online automatic column mapping now recognizes the new fields by name.
-* Interests/programs (multi-select, including time slots) are always preserved in full and joined with "; " for CSV/XLSX/Excel Online — never truncated to a single option.
-* Required-field validation no longer assumes every monitored form has a "parent name" field, so newer forms without it are no longer incorrectly rejected.
-* New "Registrations by Program" Dashboard chart.
-
-= 2.1.0 =
-* Real-time Excel Online sync via Microsoft Graph OAuth 2.0 (Authorization Code Flow) — clients just click "Connect Microsoft 365", no Tenant ID/Client ID/Client Secret/technical IDs required.
-* Automatic workbook/worksheet/table discovery and selection, with automatic column-to-field mapping.
-* Background sync queue with automatic retry, exponential backoff, and duplicate prevention.
-* New "Advanced > Microsoft Integration" screen for the one-time developer setup (Entra App Registration).
-* Excel Sync status column on the Registrations list and a full sync panel on the registration detail screen, with "Sync Again".
-* Dashboard card for Excel Online status, pending/synced/failed counts, and last sync time.
-* Database migration: added sync-tracking columns to the registrations table (safe, additive, idempotent).
-
-= 2.0.0 =
-* Setup Wizard for a fully guided, zero-configuration first run.
-* Native, dependency-free .xlsx export (no Composer/PhpSpreadsheet required).
-* CSV export rewritten with UTF-8 BOM and automatic delimiter detection.
-* Expanded Dashboard with monthly and by-class charts.
-* Microsoft Excel Online integration via the Microsoft Graph API.
-* REST API expanded (DELETE, export.csv, export.xlsx) with rate limiting.
-* Logs: Critical level, search, context filters, CSV download.
+**Core registrations**
+* Captures registrations from any Contact Form 7 form, with fully configurable field mapping (no form ID or field name hard-coded).
+* Registration detail screen is fully editable (name, age, class, contacts, programs, message, amount, photo permission), with a Change History log.
+* Bulk "Rename Program / Interest" tool to relabel a program everywhere at once.
+* Registrations list with search, filters (status, payment, photo permission), sorting, and bulk actions.
+* Dashboard with registration trends, status/program/class breakdowns, and optional financial and photo-permission cards.
+* Native CSV/XLSX export (no Composer/PhpSpreadsheet required), full or filtered.
+* REST API (list, detail, delete, CSV/XLSX export) secured by API key or authenticated session, with rate limiting.
 * Backup and restore (settings-only or full data) as downloadable JSON.
-* Internal database versioning and automatic migrations.
-* UI polish: toast notifications, loading states, contextual help, dark-mode-aware styling.
+* Logs screen with levels, search, context filters, and CSV download.
+* Setup Wizard for a guided, zero-configuration first run.
+
+**Payments**
+* Simple payment confirmation (Paid/Unpaid) with confirmation date, its own list column/filter, REST API and export support, and optional Dashboard cards.
+
+**Attendance**
+* Take attendance by program and date directly from existing registrations — no separate student roster to maintain.
+* One-click P/A/L/E status buttons, "Mark all as Present", and "Copy from Last Session".
+* Live Present/Absent/Late/Excused counter, and a warning badge for 3+ consecutive absences.
+* Unsaved-changes warning before leaving the page.
+* History tab with program and date-range filters, and per-session editing.
+* Optional Dashboard section with attendance rate and per-program breakdown.
+
+**Excel Online integration**
+* Real-time sync via Microsoft Graph OAuth 2.0 — just click "Connect Microsoft 365", no technical IDs required.
+* Automatic workbook/worksheet/table discovery and column mapping.
+* Independent sync targets for Registrations and Payments, each with its own table and mapping, sharing one connected account.
+* Background sync queue with automatic retry, exponential backoff, and duplicate-proof row updates (rows are updated in place, never duplicated).
+* Manual "Sync Now" with Pending/Failed/All/Force-resync/Reset options, and per-registration "Sync Again".
+* Sync status shown on the Registrations list and on the registration detail screen.
+
+**Security**
+* Microsoft Client Secret and OAuth tokens are encrypted (AES-256-GCM) at rest, with automatic backward-compatible migration from older plaintext installs.
 
 = 1.0.0 =
 * Initial release.

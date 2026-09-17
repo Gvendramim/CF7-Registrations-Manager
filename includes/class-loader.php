@@ -81,6 +81,7 @@ class Loader {
 		// e sem custo perceptível fora do admin.
 		if ( is_admin() ) {
 			( new Admin() )->register_hooks();
+			( new Attendance_Admin() )->register_hooks();
 			( new Export() )->register_hooks();
 			( new Setup_Wizard() )->register_hooks();
 			( new Backup() )->register_hooks();

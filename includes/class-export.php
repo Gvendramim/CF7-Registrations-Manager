@@ -54,12 +54,14 @@ class Export {
 			'search'           => '',
 			'status'           => '',
 			'photo_permission' => '',
+			'payment_status'   => '',
 		);
 
 		if ( 'filtered' === $scope ) {
 			$args['search']           = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 			$args['status']           = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
 			$args['photo_permission'] = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
+			$args['payment_status']   = isset( $_REQUEST['payment_status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['payment_status'] ) ) : '';
 		}
 
 		$ids = Database::get_all_ids( $args );
@@ -108,6 +110,7 @@ class Export {
 			'child_class'          => __( 'Class', 'music-club-registrations' ),
 			'interests'            => __( 'Interests', 'music-club-registrations' ),
 			'total_amount'         => __( 'Total Amount', 'music-club-registrations' ),
+			'payment_status'       => __( 'Payment Status', 'music-club-registrations' ),
 			'photo_permission'     => __( 'Photography Permission', 'music-club-registrations' ),
 			'additional_message'   => __( 'Additional Message', 'music-club-registrations' ),
 			'status'               => __( 'Status', 'music-club-registrations' ),
@@ -364,6 +367,8 @@ class Export {
 		foreach ( array_keys( $columns ) as $key ) {
 			if ( 'status' === $key ) {
 				$row[] = mcr_get_status_label( $item['status'] );
+			} elseif ( 'payment_status' === $key ) {
+				$row[] = 'paid' === ( $item['payment_status'] ?? 'unpaid' ) ? __( 'Paid', 'music-club-registrations' ) : __( 'Unpaid', 'music-club-registrations' );
 			} elseif ( 'created_at' === $key ) {
 				$row[] = mysql2date( 'Y-m-d H:i:s', $item['created_at'] );
 			} elseif ( 'interests' === $key ) {

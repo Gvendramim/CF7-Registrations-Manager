@@ -541,6 +541,8 @@ class REST_API {
 			'child_class'          => $registration['child_class'],
 			'interests'            => mcr_interests_to_array( $registration['interests'] ),
 			'total_amount'         => $registration['total_amount'] ?? '',
+			'payment_status'       => $registration['payment_status'] ?? 'unpaid',
+			'payment_confirmed_at' => ! empty( $registration['payment_confirmed_at'] ) ? $this->mysql_to_rfc3339( $registration['payment_confirmed_at'] ) : null,
 			'photo_permission'     => $registration['photo_permission'] ?? '',
 			'additional_message'   => $registration['additional_message'],
 			'status'               => $registration['status'],

@@ -155,6 +155,15 @@ class Admin {
 
 		add_submenu_page(
 			self::MENU_SLUG,
+			__( 'Attendance', 'music-club-registrations' ),
+			__( 'Attendance', 'music-club-registrations' ),
+			$capability,
+			Attendance_Admin::ATTENDANCE_SLUG,
+			array( new Attendance_Admin(), 'render_page' )
+		);
+
+		add_submenu_page(
+			self::MENU_SLUG,
 			__( 'Settings', 'music-club-registrations' ),
 			__( 'Settings', 'music-club-registrations' ),
 			$capability,
@@ -255,6 +264,27 @@ class Admin {
 
 			wp_localize_script( 'mcr-dashboard', 'MCRDashboardData', $this->get_dashboard_chart_data() );
 		}
+
+		// O script da tela de Attendance (botões de status, contador ao
+		// vivo, "Mark all Present", "Copy from Last Session", aviso de
+		// saída sem salvar) só é necessário na própria tela de Attendance.
+		if ( $this->is_attendance_screen() ) {
+			wp_enqueue_script(
+				'mcr-attendance',
+				MCR_PLUGIN_URL . 'assets/js/attendance.js',
+				array( 'jquery' ),
+				MCR_VERSION,
+				true
+			);
+
+			wp_localize_script(
+				'mcr-attendance',
+				'MCRAttendanceData',
+				array(
+					'notMarkedLabel' => __( 'Not Marked', 'music-club-registrations' ),
+				)
+			);
+		}
 	}
 
 	/**
@@ -270,6 +300,7 @@ class Admin {
 		$stats         = Database::get_dashboard_stats();
 		$statuses      = mcr_get_statuses();
 		$photo_stats   = Database::get_photo_permission_stats();
+		$attendance_by_program = Attendance::get_stats_by_program();
 
 		return array(
 			'timeline'    => array(
@@ -295,6 +326,15 @@ class Admin {
 			'photoPermissionChart' => array(
 				'labels' => array( __( 'Yes', 'music-club-registrations' ), __( 'No', 'music-club-registrations' ) ),
 				'values' => array( $photo_stats['yes'], $photo_stats['no'] ),
+			),
+			'attendanceByProgramChart' => array(
+				'labels' => wp_list_pluck( $attendance_by_program, 'program' ),
+				'values' => array_map(
+					function ( $rate ) {
+						return round( $rate, 1 );
+					},
+					wp_list_pluck( $attendance_by_program, 'rate' )
+				),
 			),
 		);
 	}
@@ -331,6 +371,21 @@ class Admin {
 	}
 
 	/**
+	 * Verifica se a tela atual é a de Attendance do plugin.
+	 *
+	 * @return bool
+	 */
+	private function is_attendance_screen() {
+		$screen = get_current_screen();
+
+		if ( ! $screen ) {
+			return false;
+		}
+
+		return false !== strpos( $screen->id, Attendance_Admin::ATTENDANCE_SLUG );
+	}
+
+	/**
 	 * Renderiza a tela de Dashboard com indicadores e gráficos.
 	 *
 	 * @return void
@@ -354,6 +409,18 @@ class Admin {
 		// Idem para os indicadores de "Photography Permission".
 		$show_photo_permission_stats = ! empty( Settings::get_field_map()['photo_permission'] );
 		$photo_permission_stats      = $show_photo_permission_stats ? Database::get_photo_permission_stats() : null;
+
+		// Confirmação de pagamento só faz sentido acompanhar quando o
+		// plugin está de fato calculando um valor (Total Amount mapeado) -
+		// reaproveita a mesma condição do card financeiro.
+		$payment_stats = $show_revenue_stats ? Database::get_payment_stats() : null;
+
+		// Os cartões de presença só aparecem quando já existir pelo menos
+		// um registro de chamada feito - não faz sentido mostrar "0%" antes
+		// de qualquer chamada ter sido realizada.
+		$attendance_stats           = Attendance::get_stats();
+		$show_attendance_stats      = $attendance_stats['total'] > 0;
+		$attendance_stats_by_program = $show_attendance_stats ? Attendance::get_stats_by_program() : array();
 
 		require MCR_PLUGIN_DIR . 'includes/views/view-dashboard.php';
 	}
@@ -392,6 +459,7 @@ class Admin {
 		$current_search           = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 		$current_status           = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
 		$current_photo_permission = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
+		$current_payment_status   = isset( $_REQUEST['payment_status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['payment_status'] ) ) : '';
 		$export_columns           = Export::get_all_columns();
 
 		require MCR_PLUGIN_DIR . 'includes/views/view-list.php';
@@ -415,7 +483,8 @@ class Admin {
 			wp_die( esc_html__( 'Registration not found.', 'music-club-registrations' ) );
 		}
 
-		$history = Database::get_history( $id );
+		$history           = Database::get_history( $id );
+		$attendance_history = Attendance::get_history_for_registration( $id );
 
 		require MCR_PLUGIN_DIR . 'includes/views/view-detail.php';
 	}
@@ -479,21 +548,26 @@ class Admin {
 		// Dados exclusivos da aba "Excel Online" (só precisam ser
 		// calculados quando ela está ativa, para evitar chamadas
 		// desnecessárias à Microsoft Graph API nas demais abas).
-		$ms_connection    = array();
-		$ms_workbooks     = array();
-		$ms_worksheets    = array();
-		$ms_tables        = array();
-		$ms_test_result   = null;
-		$ms_sync_summary  = null;
-		$ms_redirect_uri  = '';
+		// $ms_target decide qual destino (Registrations ou Payments) está
+		// sendo configurado no momento - a mesma tela e os mesmos campos
+		// atendem qualquer destino, apenas trocando os dados carregados.
+		$ms_target         = isset( $_GET['target'] ) && in_array( $_GET['target'], Excel_OAuth::get_target_keys(), true ) ? sanitize_key( $_GET['target'] ) : Excel_OAuth::DEFAULT_TARGET;
+		$ms_targets        = Excel_OAuth::get_target_keys();
+		$ms_connection     = array();
+		$ms_workbooks      = array();
+		$ms_worksheets     = array();
+		$ms_tables         = array();
+		$ms_test_result    = null;
+		$ms_sync_summary   = null;
+		$ms_redirect_uri   = '';
 		$ms_app_configured = Settings::is_excel_app_configured();
 
 		if ( 'excel' === $active_tab ) {
 			$ms_redirect_uri = Excel_OAuth::get_redirect_uri();
-			$ms_connection   = Excel_OAuth::get_connection();
+			$ms_connection   = Excel_OAuth::get_target_connection( $ms_target );
 
 			if ( Excel_OAuth::is_connected() ) {
-				$workbooks = Excel_Graph::list_workbooks();
+				$workbooks    = Excel_Graph::list_workbooks();
 				$ms_workbooks = is_wp_error( $workbooks ) ? array() : $workbooks;
 
 				if ( ! empty( $ms_connection['drive_id'] ) && ! empty( $ms_connection['item_id'] ) ) {
@@ -507,14 +581,14 @@ class Admin {
 				}
 			}
 
-			$ms_test_result  = get_transient( 'mcr_ms_test_result_' . get_current_user_id() );
-			delete_transient( 'mcr_ms_test_result_' . get_current_user_id() );
+			$ms_test_result = get_transient( 'mcr_ms_test_result_' . $ms_target . '_' . get_current_user_id() );
+			delete_transient( 'mcr_ms_test_result_' . $ms_target . '_' . get_current_user_id() );
 
-			$ms_sync_summary = get_transient( 'mcr_ms_sync_summary_' . get_current_user_id() );
-			delete_transient( 'mcr_ms_sync_summary_' . get_current_user_id() );
+			$ms_sync_summary = get_transient( 'mcr_ms_sync_summary_' . $ms_target . '_' . get_current_user_id() );
+			delete_transient( 'mcr_ms_sync_summary_' . $ms_target . '_' . get_current_user_id() );
 		}
 
-		$ms_sync_stats = Database::get_sync_stats();
+		$ms_sync_stats = 'payments' === $ms_target ? Database::get_payment_sync_stats() : Database::get_sync_stats();
 
 		require_once MCR_PLUGIN_DIR . 'includes/views/view-settings.php';
 	}
@@ -855,6 +929,11 @@ class Admin {
 		if ( isset( $_POST['status'] ) ) {
 			$status = sanitize_text_field( wp_unslash( $_POST['status'] ) );
 			Database::update_status( $id, $status, $user_id );
+		}
+
+		if ( isset( $_POST['payment_status'] ) ) {
+			$payment_status = sanitize_text_field( wp_unslash( $_POST['payment_status'] ) );
+			Database::update_payment_status( $id, $payment_status, $user_id );
 		}
 
 		if ( isset( $_POST['internal_notes'] ) ) {

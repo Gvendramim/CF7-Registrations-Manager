@@ -33,6 +33,7 @@
 				},
 				options: {
 					responsive: true,
+					maintainAspectRatio: false,
 					plugins: {
 						legend: { display: false },
 					},
@@ -61,6 +62,7 @@
 				},
 				options: {
 					responsive: true,
+					maintainAspectRatio: false,
 					plugins: {
 						legend: { position: 'bottom' },
 					},
@@ -85,6 +87,7 @@
 				},
 				options: {
 					responsive: true,
+					maintainAspectRatio: false,
 					plugins: {
 						legend: { display: false },
 					},
@@ -116,6 +119,7 @@
 				options: {
 					indexAxis: 'y',
 					responsive: true,
+					maintainAspectRatio: false,
 					plugins: {
 						legend: { display: false },
 					},
@@ -147,6 +151,7 @@
 				options: {
 					indexAxis: 'y',
 					responsive: true,
+					maintainAspectRatio: false,
 					plugins: {
 						legend: { display: false },
 					},
@@ -175,8 +180,42 @@
 				},
 				options: {
 					responsive: true,
+					maintainAspectRatio: false,
 					plugins: {
 						legend: { position: 'bottom' },
+					},
+				},
+			} );
+		}
+
+		var attendanceByProgramCanvas = document.getElementById( 'mcr-attendance-by-program-chart' );
+		if ( attendanceByProgramCanvas && data.attendanceByProgramChart ) {
+			new window.Chart( attendanceByProgramCanvas.getContext( '2d' ), {
+				type: 'bar',
+				data: {
+					labels: data.attendanceByProgramChart.labels,
+					datasets: [
+						{
+							label: 'Attendance Rate (%)',
+							data: data.attendanceByProgramChart.values,
+							backgroundColor: '#2271b1',
+							borderRadius: 4,
+						},
+					],
+				},
+				options: {
+					indexAxis: 'y',
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: { display: false },
+					},
+					scales: {
+						x: {
+							beginAtZero: true,
+							max: 100,
+							ticks: { precision: 0 },
+						},
 					},
 				},
 			} );

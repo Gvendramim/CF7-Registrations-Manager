@@ -15,7 +15,11 @@
  * @var string                $rest_namespace     Namespace da API REST.
  * @var array|false           $rest_test_result   Resultado do último teste da API REST.
  * @var array|false           $backup_notice      Mensagem pendente sobre importação de backup.
- * @var array                 $ms_connection      Estado da conexão com a Microsoft (Excel_OAuth::get_connection()).
+ * @var array<int,string>     $distinct_interests Lista de valores distintos já usados no campo "interests".
+ * @var int|false             $rename_interest_result Número de registros afetados pela última renomeação, ou false.
+ * @var array                 $ms_connection      Configuração do destino atual (Excel_OAuth::get_target_connection()).
+ * @var string                $ms_target          Destino de sincronização atualmente selecionado ('registrations' ou 'payments').
+ * @var array<int,string>     $ms_targets         Lista de destinos disponíveis (Excel_OAuth::get_target_keys()).
  * @var array                 $ms_workbooks       Workbooks (.xlsx) descobertos via Microsoft Graph.
  * @var array                 $ms_worksheets      Worksheets do workbook selecionado.
  * @var array                 $ms_tables          Tabelas da worksheet selecionada.
@@ -219,6 +223,51 @@ function mcr_settings_tab_url( $tab ) {
 
 		<hr />
 
+		<h2><?php esc_html_e( 'Rename Program / Interest', 'music-club-registrations' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'If a program option was renamed in your Contact Form 7 form (e.g. the schedule or wording changed), existing registrations still keep the old text. Use this to relabel it everywhere at once, unifying your reports and Dashboard charts.', 'music-club-registrations' ); ?>
+		</p>
+
+		<?php if ( false !== $rename_interest_result ) : ?>
+			<div class="notice notice-success inline">
+				<p>
+					<?php
+					printf(
+						/* translators: %d: number of registrations updated */
+						esc_html__( 'Done — %d registration(s) updated.', 'music-club-registrations' ),
+						(int) $rename_interest_result
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( empty( $distinct_interests ) ) : ?>
+			<p class="description"><?php esc_html_e( 'No program/interest values have been recorded yet.', 'music-club-registrations' ); ?></p>
+		<?php else : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="mcr-rename-interest-form">
+				<?php wp_nonce_field( 'mcr_rename_interest' ); ?>
+				<input type="hidden" name="action" value="mcr_rename_interest" />
+
+				<label for="mcr-old-interest"><?php esc_html_e( 'Existing value', 'music-club-registrations' ); ?></label>
+				<select name="old_interest" id="mcr-old-interest" class="mcr-ms-select">
+					<?php foreach ( $distinct_interests as $interest_value ) : ?>
+						<option value="<?php echo esc_attr( $interest_value ); ?>"><?php echo esc_html( $interest_value ); ?></option>
+					<?php endforeach; ?>
+				</select>
+
+				<label for="mcr-new-interest"><?php esc_html_e( 'New value', 'music-club-registrations' ); ?></label>
+				<input type="text" name="new_interest" id="mcr-new-interest" class="regular-text" required="required" />
+
+				<button type="submit" class="button button-primary" onclick="return confirm('<?php echo esc_js( __( 'Rename this value across all matching registrations? This cannot be undone automatically.', 'music-club-registrations' ) ); ?>');">
+					<?php esc_html_e( 'Rename Everywhere', 'music-club-registrations' ); ?>
+				</button>
+				<p class="description"><?php esc_html_e( 'Note: this updates the database only. Rows already synced to Excel Online keep the old text until that registration is synced again.', 'music-club-registrations' ); ?></p>
+			</form>
+		<?php endif; ?>
+
+		<hr />
+
 		<h2><?php esc_html_e( 'REST API', 'music-club-registrations' ); ?></h2>
 		<p class="description">
 			<?php esc_html_e( 'The REST API is registered automatically — no manual setup is required after installation. Use the key below to authenticate external requests.', 'music-club-registrations' ); ?>
@@ -274,6 +323,15 @@ function mcr_settings_tab_url( $tab ) {
 		</form>
 
 	<?php elseif ( 'excel' === $active_tab ) : ?>
+
+		<h2 class="nav-tab-wrapper mcr-ms-target-tabs">
+			<?php foreach ( $ms_targets as $target_key ) : ?>
+				<a href="<?php echo esc_url( add_query_arg( array( 'page' => \Music_Club_Registrations\Admin::SETTINGS_SLUG, 'tab' => 'excel', 'target' => $target_key ), admin_url( 'admin.php' ) ) ); ?>" class="nav-tab <?php echo $ms_target === $target_key ? 'nav-tab-active' : ''; ?>">
+					<?php echo esc_html( 'payments' === $target_key ? __( 'Payments', 'music-club-registrations' ) : __( 'Registrations', 'music-club-registrations' ) ); ?>
+				</a>
+			<?php endforeach; ?>
+		</h2>
+
 
 		<?php if ( ! empty( $_GET['ms_error'] ) ) : ?>
 			<?php
@@ -369,6 +427,7 @@ function mcr_settings_tab_url( $tab ) {
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<?php wp_nonce_field( 'mcr_ms_oauth_start' ); ?>
 					<input type="hidden" name="action" value="mcr_ms_oauth_start" />
+					<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 					<button type="submit" class="button button-primary button-hero mcr-ms-connect-btn">
 						<?php esc_html_e( 'Connect Microsoft 365', 'music-club-registrations' ); ?>
 					</button>
@@ -395,6 +454,7 @@ function mcr_settings_tab_url( $tab ) {
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="mcr-ms-select-form">
 					<?php wp_nonce_field( 'mcr_ms_select_workbook' ); ?>
 					<input type="hidden" name="action" value="mcr_ms_select_workbook" />
+					<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 					<label for="mcr-ms-workbook"><strong><?php esc_html_e( 'Workbook', 'music-club-registrations' ); ?></strong></label><br />
 					<select name="mcr_ms_workbook_choice" id="mcr-ms-workbook" class="mcr-ms-select">
 						<option value=""><?php esc_html_e( '— Select workbook —', 'music-club-registrations' ); ?></option>
@@ -421,6 +481,7 @@ function mcr_settings_tab_url( $tab ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="mcr-ms-select-form">
 						<?php wp_nonce_field( 'mcr_ms_select_worksheet' ); ?>
 						<input type="hidden" name="action" value="mcr_ms_select_worksheet" />
+						<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 						<label for="mcr-ms-worksheet"><strong><?php esc_html_e( 'Worksheet', 'music-club-registrations' ); ?></strong></label><br />
 						<select name="worksheet_name" id="mcr-ms-worksheet" class="mcr-ms-select mcr-ms-autosubmit">
 							<option value=""><?php esc_html_e( '— Select worksheet —', 'music-club-registrations' ); ?></option>
@@ -439,6 +500,7 @@ function mcr_settings_tab_url( $tab ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="mcr-ms-select-form">
 						<?php wp_nonce_field( 'mcr_ms_select_table' ); ?>
 						<input type="hidden" name="action" value="mcr_ms_select_table" />
+						<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 						<label for="mcr-ms-table"><strong><?php esc_html_e( 'Table', 'music-club-registrations' ); ?></strong></label><br />
 						<?php if ( empty( $ms_tables ) ) : ?>
 							<p class="description mcr-inline-warning"><?php esc_html_e( 'This workbook does not contain an Excel Table. Please create a Table in Excel before continuing (select your data in Excel, then choose Insert > Table).', 'music-club-registrations' ); ?></p>
@@ -466,6 +528,7 @@ function mcr_settings_tab_url( $tab ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<?php wp_nonce_field( 'mcr_ms_save_mapping' ); ?>
 						<input type="hidden" name="action" value="mcr_ms_save_mapping" />
+						<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 
 						<table class="widefat mcr-mapping-table">
 							<thead>
@@ -475,7 +538,7 @@ function mcr_settings_tab_url( $tab ) {
 								</tr>
 							</thead>
 							<tbody>
-								<?php foreach ( \Music_Club_Registrations\Excel_Online::get_mappable_fields() as $slot => $label ) : ?>
+								<?php foreach ( \Music_Club_Registrations\Excel_Online::get_mappable_fields( $ms_target ) as $slot => $label ) : ?>
 									<tr>
 										<td><?php echo esc_html( $label ); ?></td>
 										<td>
@@ -507,20 +570,24 @@ function mcr_settings_tab_url( $tab ) {
 				<?php endif; ?>
 
 				<p class="mcr-ms-actions">
-					<?php if ( \Music_Club_Registrations\Excel_OAuth::is_fully_configured() ) : ?>
+					<?php if ( \Music_Club_Registrations\Excel_OAuth::is_fully_configured( $ms_target ) ) : ?>
 						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
 							<?php wp_nonce_field( 'mcr_ms_test_connection' ); ?>
 							<input type="hidden" name="action" value="mcr_ms_test_connection" />
+							<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 							<button type="submit" class="button mcr-test-connection-btn"><?php esc_html_e( 'Test Connection', 'music-club-registrations' ); ?></button>
 						</form>
 
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;" onsubmit="return this.scope.value !== 'reset_all' || confirm('<?php echo esc_js( __( 'This clears the saved link between every registration and its Excel row, then resyncs everything as brand-new rows. Only use this after manually deleting ALL data rows from this table in Excel (leaving just the header). Continue?', 'music-club-registrations' ) ); ?>');">
 							<?php wp_nonce_field( 'mcr_ms_sync_now' ); ?>
 							<input type="hidden" name="action" value="mcr_ms_sync_now" />
+							<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 							<select name="scope">
 								<option value="pending"><?php esc_html_e( 'Pending only', 'music-club-registrations' ); ?></option>
 								<option value="failed"><?php esc_html_e( 'Failed only', 'music-club-registrations' ); ?></option>
-								<option value="all"><?php esc_html_e( 'All registrations', 'music-club-registrations' ); ?></option>
+								<option value="all"><?php echo esc_html( 'payments' === $ms_target ? __( 'All payments', 'music-club-registrations' ) : __( 'All registrations', 'music-club-registrations' ) ); ?></option>
+								<option value="force_all"><?php esc_html_e( 'Force resync all (including already synced)', 'music-club-registrations' ); ?></option>
+								<option value="reset_all"><?php esc_html_e( '⚠ Reset & resync all (use only after manually emptying the spreadsheet)', 'music-club-registrations' ); ?></option>
 							</select>
 							<button type="submit" class="button mcr-sync-now-btn"><?php esc_html_e( 'Sync Now', 'music-club-registrations' ); ?></button>
 						</form>
@@ -529,6 +596,7 @@ function mcr_settings_tab_url( $tab ) {
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
 								<?php wp_nonce_field( 'mcr_ms_retry_failed' ); ?>
 								<input type="hidden" name="action" value="mcr_ms_retry_failed" />
+								<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
 								<button type="submit" class="button">
 									<?php esc_html_e( 'Retry Failed Syncs', 'music-club-registrations' ); ?>
 									(<?php echo (int) $ms_sync_stats['failed']; ?>)
@@ -540,7 +608,8 @@ function mcr_settings_tab_url( $tab ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
 						<?php wp_nonce_field( 'mcr_ms_oauth_disconnect' ); ?>
 						<input type="hidden" name="action" value="mcr_ms_oauth_disconnect" />
-						<button type="submit" class="button button-link-delete mcr-ms-disconnect-btn" onclick="return confirm('<?php echo esc_js( __( 'Disconnect this Microsoft account? Your existing registrations and sync history will be kept.', 'music-club-registrations' ) ); ?>');">
+						<input type="hidden" name="target" value="<?php echo esc_attr( $ms_target ); ?>" />
+						<button type="submit" class="button button-link-delete mcr-ms-disconnect-btn" onclick="return confirm('<?php echo esc_js( __( 'Disconnect this Microsoft account? This affects BOTH Registrations and Payments sync. Your existing registrations and sync history will be kept.', 'music-club-registrations' ) ); ?>');">
 							<?php esc_html_e( 'Disconnect Microsoft Account', 'music-club-registrations' ); ?>
 						</button>
 					</form>

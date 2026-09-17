@@ -10,8 +10,12 @@
  * @var bool   $excel_connected     Se a integração com o Excel Online está totalmente configurada.
  * @var bool   $show_revenue_stats  Se os cartões financeiros devem ser exibidos (campo Total Amount mapeado).
  * @var array|null $revenue_stats   Indicadores financeiros (Database::get_revenue_stats()), ou null quando não aplicável.
+ * @var array|null $payment_stats   Indicadores de confirmação de pagamento (Database::get_payment_stats()), ou null.
  * @var bool   $show_photo_permission_stats Se os cartões de Photography Permission devem ser exibidos (campo mapeado).
  * @var array|null $photo_permission_stats  Indicadores de Database::get_photo_permission_stats(), ou null quando não aplicável.
+ * @var bool   $show_attendance_stats Se os cartões de presença devem ser exibidos (existe ao menos uma chamada registrada).
+ * @var array  $attendance_stats      Indicadores de Attendance::get_stats().
+ * @var array  $attendance_stats_by_program Taxa de presença por programa (Attendance::get_stats_by_program()).
  *
  * @package Music_Club_Registrations
  */
@@ -90,6 +94,24 @@ $statuses = mcr_get_statuses();
 		</p>
 	<?php endif; ?>
 
+	<?php if ( $payment_stats ) : ?>
+		<h2><?php esc_html_e( 'Payment Confirmation', 'music-club-registrations' ); ?></h2>
+		<div class="mcr-stats-grid">
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value"><?php echo esc_html( number_format_i18n( $payment_stats['paid'] ) ); ?></span>
+				<span class="mcr-stat-label">✅ <?php esc_html_e( 'Paid', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value"><?php echo esc_html( number_format_i18n( $payment_stats['unpaid'] ) ); ?></span>
+				<span class="mcr-stat-label">⏳ <?php esc_html_e( 'Unpaid', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">€<?php echo esc_html( number_format_i18n( $payment_stats['confirmed_revenue'], 2 ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Confirmed Revenue', 'music-club-registrations' ); ?></span>
+			</div>
+		</div>
+	<?php endif; ?>
+
 	<?php if ( $show_photo_permission_stats && $photo_permission_stats ) : ?>
 		<h2><?php esc_html_e( 'Photography Permission', 'music-club-registrations' ); ?></h2>
 		<div class="mcr-stats-grid">
@@ -104,6 +126,36 @@ $statuses = mcr_get_statuses();
 		</div>
 	<?php endif; ?>
 
+	<?php if ( $show_attendance_stats ) : ?>
+		<h2><?php esc_html_e( 'Attendance', 'music-club-registrations' ); ?></h2>
+		<div class="mcr-stats-grid">
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value"><?php echo esc_html( number_format_i18n( $attendance_stats['total'] ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Total Classes Marked', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value"><?php echo esc_html( number_format_i18n( $attendance_stats['rate'], 1 ) ); ?>%</span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Attendance Rate', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">🟢 <?php echo esc_html( number_format_i18n( $attendance_stats['present'] ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Present', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">🔴 <?php echo esc_html( number_format_i18n( $attendance_stats['absent'] ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Absent', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">🟡 <?php echo esc_html( number_format_i18n( $attendance_stats['late'] ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Late', 'music-club-registrations' ); ?></span>
+			</div>
+			<div class="mcr-stat-card">
+				<span class="mcr-stat-value">🔵 <?php echo esc_html( number_format_i18n( $attendance_stats['excused'] ) ); ?></span>
+				<span class="mcr-stat-label"><?php esc_html_e( 'Excused', 'music-club-registrations' ); ?></span>
+			</div>
+		</div>
+	<?php endif; ?>
+
 	<div class="mcr-charts-grid">
 		<div class="mcr-chart-card">
 			<h2><?php esc_html_e( 'Registrations (Last 30 Days)', 'music-club-registrations' ); ?></h2>
@@ -113,6 +165,12 @@ $statuses = mcr_get_statuses();
 			<div class="mcr-chart-card">
 				<h2><?php esc_html_e( 'Photography Permission Distribution', 'music-club-registrations' ); ?></h2>
 				<canvas id="mcr-photo-permission-chart" height="110"></canvas>
+			</div>
+		<?php endif; ?>
+		<?php if ( $show_attendance_stats && ! empty( $attendance_stats_by_program ) ) : ?>
+			<div class="mcr-chart-card">
+				<h2><?php esc_html_e( 'Attendance by Program', 'music-club-registrations' ); ?></h2>
+				<canvas id="mcr-attendance-by-program-chart" height="110"></canvas>
 			</div>
 		<?php endif; ?>
 		<div class="mcr-chart-card">

@@ -42,6 +42,17 @@ class Database {
 	}
 
 	/**
+	 * Retorna o nome completo da tabela de presença/chamada.
+	 *
+	 * @return string
+	 */
+	public static function attendance_table_name() {
+		global $wpdb;
+
+		return $wpdb->prefix . MCR_ATTENDANCE_TABLE_NAME;
+	}
+
+	/**
 	 * Cria (ou atualiza) as tabelas do plugin utilizando dbDelta().
 	 *
 	 * dbDelta() é idempotente: se a tabela já existir com a estrutura
@@ -76,6 +87,8 @@ class Database {
 			interests TEXT NULL,
 			total_amount VARCHAR(50) NOT NULL DEFAULT '',
 			photo_permission VARCHAR(10) NOT NULL DEFAULT '',
+			payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+			payment_confirmed_at DATETIME NULL,
 			additional_message TEXT NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			internal_notes LONGTEXT NULL,
@@ -84,6 +97,11 @@ class Database {
 			excel_last_sync_at DATETIME NULL,
 			excel_last_sync_error TEXT NULL,
 			excel_row_reference VARCHAR(100) NULL,
+			payment_excel_sync_status VARCHAR(20) NOT NULL DEFAULT 'not_configured',
+			payment_excel_sync_attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			payment_excel_last_sync_at DATETIME NULL,
+			payment_excel_last_sync_error TEXT NULL,
+			payment_excel_row_reference VARCHAR(100) NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
@@ -93,7 +111,9 @@ class Database {
 			KEY status (status),
 			KEY created_at (created_at),
 			KEY excel_sync_status (excel_sync_status),
-			KEY photo_permission (photo_permission)
+			KEY payment_excel_sync_status (payment_excel_sync_status),
+			KEY photo_permission (photo_permission),
+			KEY payment_status (payment_status)
 		) {$charset_collate};";
 
 		$sql_history = "CREATE TABLE {$history} (
@@ -109,8 +129,38 @@ class Database {
 			KEY changed_at (changed_at)
 		) {$charset_collate};";
 
+		$attendance = self::attendance_table_name();
+
+		// A chave única (registration_id + program + attendance_date)
+		// garante que nunca existam duas linhas de presença para a mesma
+		// criança, no mesmo programa, na mesma data - salvar a chamada de
+		// novo para a mesma turma/data sempre ATUALIZA os registros
+		// existentes em vez de duplicá-los.
+		$sql_attendance = "CREATE TABLE {$attendance} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			registration_id BIGINT UNSIGNED NOT NULL,
+			program VARCHAR(180) NOT NULL DEFAULT '',
+			attendance_date DATE NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT '',
+			notes VARCHAR(500) NOT NULL DEFAULT '',
+			marked_by BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			excel_sync_status VARCHAR(20) NOT NULL DEFAULT 'not_configured',
+			excel_sync_attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			excel_last_sync_at DATETIME NULL,
+			excel_last_sync_error TEXT NULL,
+			excel_row_reference VARCHAR(100) NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY attendance_unique (registration_id, program, attendance_date),
+			KEY program_date (program, attendance_date),
+			KEY attendance_date (attendance_date),
+			KEY excel_sync_status (excel_sync_status)
+		) {$charset_collate};";
+
 		dbDelta( $sql_registrations );
 		dbDelta( $sql_history );
+		dbDelta( $sql_attendance );
 
 		// Cria também a tabela de logs internos do plugin.
 		Logger::install();
@@ -321,6 +371,74 @@ class Database {
 				),
 				$user_id
 			);
+
+			do_action( 'mcr_registration_updated', $id, array( 'status' => $new_status ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Atualiza a confirmação de pagamento de uma inscrição ("Paid" ou
+	 * "Unpaid"). Diferente do status da inscrição em si, este campo é
+	 * definido diretamente pelo administrador (nunca capturado do
+	 * formulário do Contact Form 7) - representa se o pagamento já foi
+	 * confirmado manualmente, não uma etapa do fluxo de inscrição.
+	 *
+	 * Registra automaticamente a data/hora da confirmação quando o status
+	 * passa a "paid", e a remove caso a confirmação seja desfeita.
+	 *
+	 * @param int    $id         ID da inscrição.
+	 * @param string $new_status "paid" ou "unpaid".
+	 * @param int    $user_id    ID do usuário responsável pela alteração.
+	 * @return bool
+	 */
+	public static function update_payment_status( $id, $new_status, $user_id = 0 ) {
+		global $wpdb;
+
+		if ( ! in_array( $new_status, array( 'paid', 'unpaid' ), true ) ) {
+			return false;
+		}
+
+		$current = self::get_registration( $id );
+
+		if ( ! $current ) {
+			return false;
+		}
+
+		$confirmed_at = 'paid' === $new_status ? current_time( 'mysql' ) : null;
+
+		$updated = $wpdb->update(
+			self::table_name(),
+			array(
+				'payment_status'        => $new_status,
+				'payment_confirmed_at' => $confirmed_at,
+				'updated_at'             => current_time( 'mysql' ),
+			),
+			array( 'id' => absint( $id ) ),
+			array( '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			return false;
+		}
+
+		if ( $current['payment_status'] !== $new_status ) {
+			self::log_history( $id, 'payment_status', $current['payment_status'], $new_status, $user_id );
+
+			Logger::info(
+				'payment',
+				sprintf(
+					'Registration #%d payment status changed from "%s" to "%s".',
+					absint( $id ),
+					$current['payment_status'],
+					$new_status
+				),
+				$user_id
+			);
+
+			do_action( 'mcr_registration_updated', $id, array( 'payment_status' => $new_status ) );
 		}
 
 		return true;
@@ -452,7 +570,23 @@ class Database {
 			array( '%d' )
 		);
 
-		return false !== $result;
+		$success = false !== $result;
+
+		if ( $success ) {
+			/**
+			 * Disparado depois que um ou mais campos de uma inscrição são
+			 * alterados (edição manual pela tela de detalhes). Consumido
+			 * pela fila de sincronização com o Excel Online, para
+			 * re-sincronizar (atualizando a linha existente, nunca criando
+			 * uma nova) inscrições que já haviam sido sincronizadas antes.
+			 *
+			 * @param int   $registration_id ID da inscrição alterada.
+			 * @param array $changed_fields  Campos que efetivamente mudaram (slot => novo valor).
+			 */
+			do_action( 'mcr_registration_updated', $id, $update );
+		}
+
+		return $success;
 	}
 
 	/**
@@ -488,11 +622,36 @@ class Database {
 	 * @return void
 	 */
 	public static function mark_sync_pending( $id ) {
+		self::mark_sync_pending_for( $id, '' );
+	}
+
+	/**
+	 * Marca o pagamento de uma inscrição como pendente de sincronização
+	 * com o Excel (destino "payments").
+	 *
+	 * @param int $id ID da inscrição.
+	 * @return void
+	 */
+	public static function mark_payment_sync_pending( $id ) {
+		self::mark_sync_pending_for( $id, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de mark_sync_pending(), parametrizada pelo
+	 * prefixo das colunas ('' para o destino Registrations, 'payment_'
+	 * para o destino Payments) - evita duplicar a mesma lógica de SQL
+	 * para cada destino de sincronização.
+	 *
+	 * @param int    $id     ID da inscrição.
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function mark_sync_pending_for( $id, $prefix ) {
 		global $wpdb;
 
 		$wpdb->update(
 			self::table_name(),
-			array( 'excel_sync_status' => 'pending' ),
+			array( $prefix . 'excel_sync_status' => 'pending' ),
 			array( 'id' => absint( $id ) ),
 			array( '%s' ),
 			array( '%d' )
@@ -508,11 +667,33 @@ class Database {
 	 * @return void
 	 */
 	public static function mark_sync_syncing( $id ) {
+		self::mark_sync_syncing_for( $id, '' );
+	}
+
+	/**
+	 * Marca o pagamento de uma inscrição como sincronizando no momento
+	 * (destino "payments").
+	 *
+	 * @param int $id ID da inscrição.
+	 * @return void
+	 */
+	public static function mark_payment_sync_syncing( $id ) {
+		self::mark_sync_syncing_for( $id, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de mark_sync_syncing().
+	 *
+	 * @param int    $id     ID da inscrição.
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function mark_sync_syncing_for( $id, $prefix ) {
 		global $wpdb;
 
 		$wpdb->update(
 			self::table_name(),
-			array( 'excel_sync_status' => 'syncing' ),
+			array( $prefix . 'excel_sync_status' => 'syncing' ),
 			array( 'id' => absint( $id ) ),
 			array( '%s' ),
 			array( '%d' )
@@ -529,15 +710,39 @@ class Database {
 	 * @return void
 	 */
 	public static function mark_sync_synced( $id, $row_reference = '' ) {
+		self::mark_sync_synced_for( $id, $row_reference, '' );
+	}
+
+	/**
+	 * Marca o pagamento de uma inscrição como sincronizado com sucesso
+	 * (destino "payments").
+	 *
+	 * @param int    $id            ID da inscrição.
+	 * @param string $row_reference Referência da linha no Excel.
+	 * @return void
+	 */
+	public static function mark_payment_sync_synced( $id, $row_reference = '' ) {
+		self::mark_sync_synced_for( $id, $row_reference, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de mark_sync_synced().
+	 *
+	 * @param int    $id            ID da inscrição.
+	 * @param string $row_reference Referência da linha no Excel.
+	 * @param string $prefix        Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function mark_sync_synced_for( $id, $row_reference, $prefix ) {
 		global $wpdb;
 
 		$wpdb->update(
 			self::table_name(),
 			array(
-				'excel_sync_status'     => 'synced',
-				'excel_last_sync_at'    => current_time( 'mysql' ),
-				'excel_last_sync_error' => '',
-				'excel_row_reference'   => $row_reference,
+				$prefix . 'excel_sync_status'     => 'synced',
+				$prefix . 'excel_last_sync_at'    => current_time( 'mysql' ),
+				$prefix . 'excel_last_sync_error' => '',
+				$prefix . 'excel_row_reference'   => $row_reference,
 			),
 			array( 'id' => absint( $id ) ),
 			array( '%s', '%s', '%s', '%s' ),
@@ -555,17 +760,46 @@ class Database {
 	 * @return void
 	 */
 	public static function mark_sync_failed( $id, $message ) {
+		self::mark_sync_failed_for( $id, $message, '' );
+	}
+
+	/**
+	 * Marca o pagamento de uma inscrição como falha na sincronização
+	 * (destino "payments").
+	 *
+	 * @param int    $id      ID da inscrição.
+	 * @param string $message Mensagem de erro amigável.
+	 * @return void
+	 */
+	public static function mark_payment_sync_failed( $id, $message ) {
+		self::mark_sync_failed_for( $id, $message, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de mark_sync_failed().
+	 *
+	 * @param int    $id      ID da inscrição.
+	 * @param string $message Mensagem de erro amigável.
+	 * @param string $prefix  Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function mark_sync_failed_for( $id, $message, $prefix ) {
 		global $wpdb;
 
 		$table = self::table_name();
 
+		$status_col  = $prefix . 'excel_sync_status';
+		$attempts_col = $prefix . 'excel_sync_attempts';
+		$last_at_col = $prefix . 'excel_last_sync_at';
+		$last_err_col = $prefix . 'excel_last_sync_error';
+
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$table}
-				SET excel_sync_status = 'failed',
-					excel_sync_attempts = excel_sync_attempts + 1,
-					excel_last_sync_at = %s,
-					excel_last_sync_error = %s
+				SET {$status_col} = 'failed',
+					{$attempts_col} = {$attempts_col} + 1,
+					{$last_at_col} = %s,
+					{$last_err_col} = %s
 				WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				current_time( 'mysql' ),
 				$message,
@@ -582,13 +816,36 @@ class Database {
 	 * @return void
 	 */
 	public static function reset_sync_status( $id ) {
+		self::reset_sync_status_for( $id, '' );
+	}
+
+	/**
+	 * Reseta o status de sincronização do pagamento de uma inscrição
+	 * (destino "payments"), usado pelo botão "Sync Again" daquele
+	 * destino.
+	 *
+	 * @param int $id ID da inscrição.
+	 * @return void
+	 */
+	public static function reset_payment_sync_status( $id ) {
+		self::reset_sync_status_for( $id, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de reset_sync_status().
+	 *
+	 * @param int    $id     ID da inscrição.
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function reset_sync_status_for( $id, $prefix ) {
 		global $wpdb;
 
 		$wpdb->update(
 			self::table_name(),
 			array(
-				'excel_sync_status'     => 'pending',
-				'excel_last_sync_error' => '',
+				$prefix . 'excel_sync_status'     => 'pending',
+				$prefix . 'excel_last_sync_error' => '',
 			),
 			array( 'id' => absint( $id ) ),
 			array( '%s', '%s' ),
@@ -623,12 +880,122 @@ class Database {
 	 * @return void
 	 */
 	public static function mark_unsynced_as_pending() {
+		self::mark_unsynced_as_pending_for( '' );
+	}
+
+	/**
+	 * Marca todos os pagamentos ainda não sincronizados como "pending"
+	 * (destino "payments").
+	 *
+	 * @return void
+	 */
+	public static function mark_unsynced_payments_as_pending() {
+		self::mark_unsynced_as_pending_for( 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de mark_unsynced_as_pending().
+	 *
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function mark_unsynced_as_pending_for( $prefix ) {
 		global $wpdb;
 
 		$table = self::table_name();
+		$col   = $prefix . 'excel_sync_status';
 
 		$wpdb->query(
-			"UPDATE {$table} SET excel_sync_status = 'pending' WHERE excel_sync_status != 'synced'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			"UPDATE {$table} SET {$col} = 'pending' WHERE {$col} != 'synced'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		);
+	}
+
+	/**
+	 * Marca TODAS as inscrições como "pending" para o destino
+	 * Registrations, INCLUSIVE as que já estavam sincronizadas - usado
+	 * para forçar uma ressincronização completa (ex: depois de corrigir
+	 * um problema na integração, ou para garantir que a planilha reflita
+	 * exatamente o estado atual de tudo). Como a referência da linha
+	 * (`excel_row_reference`) não é apagada, cada inscrição já
+	 * sincronizada tem sua linha ATUALIZADA, nunca duplicada.
+	 *
+	 * @return void
+	 */
+	public static function force_all_as_pending() {
+		self::force_all_as_pending_for( '' );
+	}
+
+	/**
+	 * Equivalente a force_all_as_pending() para o destino Payments.
+	 *
+	 * @return void
+	 */
+	public static function force_all_payments_as_pending() {
+		self::force_all_as_pending_for( 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de força de ressincronização total.
+	 *
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function force_all_as_pending_for( $prefix ) {
+		global $wpdb;
+
+		$table = self::table_name();
+		$col   = $prefix . 'excel_sync_status';
+
+		$wpdb->query(
+			"UPDATE {$table} SET {$col} = 'pending'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		);
+	}
+
+	/**
+	 * Reseta COMPLETAMENTE o rastreamento de sincronização do destino
+	 * Registrations: marca tudo como "pending" E apaga a referência de
+	 * linha salva de cada inscrição, fazendo com que a próxima
+	 * sincronização crie linhas novas em vez de tentar atualizar uma
+	 * posição antiga.
+	 *
+	 * Usado apenas como ferramenta de recuperação, para o cenário em que
+	 * a planilha foi limpa manualmente (ou ficou com linhas fora de
+	 * ordem/duplicadas por algum problema já corrigido) e o
+	 * correspondência entre os índices salvos e as linhas físicas reais
+	 * não é mais confiável. Depois de usar esta ferramenta, a tabela do
+	 * Excel deve estar vazia (sem nenhuma linha de dados) antes de rodar
+	 * a sincronização de novo, para não duplicar tudo.
+	 *
+	 * @return void
+	 */
+	public static function reset_all_sync_references() {
+		self::reset_all_sync_references_for( '' );
+	}
+
+	/**
+	 * Equivalente a reset_all_sync_references() para o destino Payments.
+	 *
+	 * @return void
+	 */
+	public static function reset_all_payment_sync_references() {
+		self::reset_all_sync_references_for( 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de reset completo de referências.
+	 *
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return void
+	 */
+	private static function reset_all_sync_references_for( $prefix ) {
+		global $wpdb;
+
+		$table         = self::table_name();
+		$status_col    = $prefix . 'excel_sync_status';
+		$reference_col = $prefix . 'excel_row_reference';
+
+		$wpdb->query(
+			"UPDATE {$table} SET {$status_col} = 'pending', {$reference_col} = NULL" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		);
 	}
 
@@ -643,22 +1010,50 @@ class Database {
 	 * @return array
 	 */
 	public static function get_sync_queue_items( $limit = 20, $max_attempts = 5 ) {
+		return self::get_sync_queue_items_for( $limit, $max_attempts, '' );
+	}
+
+	/**
+	 * Retorna inscrições cujo PAGAMENTO está elegível para a fila de
+	 * sincronização (destino "payments"), com a mesma lógica de backoff.
+	 *
+	 * @param int $limit        Número máximo de inscrições a retornar.
+	 * @param int $max_attempts Número máximo de tentativas antes de desistir automaticamente.
+	 * @return array
+	 */
+	public static function get_payment_sync_queue_items( $limit = 20, $max_attempts = 5 ) {
+		return self::get_sync_queue_items_for( $limit, $max_attempts, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de get_sync_queue_items().
+	 *
+	 * @param int    $limit        Número máximo de inscrições a retornar.
+	 * @param int    $max_attempts Número máximo de tentativas antes de desistir automaticamente.
+	 * @param string $prefix       Prefixo das colunas de rastreamento.
+	 * @return array
+	 */
+	private static function get_sync_queue_items_for( $limit, $max_attempts, $prefix ) {
 		global $wpdb;
 
 		$table = self::table_name();
 		$limit = max( 1, absint( $limit ) );
 
+		$status_col   = $prefix . 'excel_sync_status';
+		$attempts_col = $prefix . 'excel_sync_attempts';
+		$last_at_col  = $prefix . 'excel_last_sync_at';
+
 		// Backoff simples: quanto mais tentativas, mais tempo esperamos
 		// antes de tentar de novo (1, 2, 4, 8, 16 minutos...).
 		$sql = $wpdb->prepare(
 			"SELECT * FROM {$table}
-			WHERE excel_sync_status = 'pending'
+			WHERE {$status_col} = 'pending'
 			   OR (
-					excel_sync_status = 'failed'
-					AND excel_sync_attempts < %d
+					{$status_col} = 'failed'
+					AND {$attempts_col} < %d
 					AND (
-						excel_last_sync_at IS NULL
-						OR excel_last_sync_at <= (NOW() - INTERVAL POW(2, excel_sync_attempts) MINUTE)
+						{$last_at_col} IS NULL
+						OR {$last_at_col} <= (NOW() - INTERVAL POW(2, {$attempts_col}) MINUTE)
 					)
 			   )
 			ORDER BY created_at ASC
@@ -680,13 +1075,36 @@ class Database {
 	 * @return array
 	 */
 	public static function get_failed_sync_items( $limit = 100 ) {
+		return self::get_failed_sync_items_for( $limit, '' );
+	}
+
+	/**
+	 * Retorna inscrições cujo pagamento falhou na sincronização (destino
+	 * "payments").
+	 *
+	 * @param int $limit Número máximo de inscrições a retornar.
+	 * @return array
+	 */
+	public static function get_failed_payment_sync_items( $limit = 100 ) {
+		return self::get_failed_sync_items_for( $limit, 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de get_failed_sync_items().
+	 *
+	 * @param int    $limit  Número máximo de inscrições a retornar.
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return array
+	 */
+	private static function get_failed_sync_items_for( $limit, $prefix ) {
 		global $wpdb;
 
 		$table = self::table_name();
+		$col   = $prefix . 'excel_sync_status';
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE excel_sync_status = 'failed' ORDER BY created_at ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT * FROM {$table} WHERE {$col} = 'failed' ORDER BY created_at ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				max( 1, absint( $limit ) )
 			),
 			ARRAY_A
@@ -703,9 +1121,30 @@ class Database {
 	 * @return array{pending:int,synced:int,failed:int,not_configured:int,last_sync_at:?string}
 	 */
 	public static function get_sync_stats() {
+		return self::get_sync_stats_for( '' );
+	}
+
+	/**
+	 * Retorna os indicadores de sincronização de PAGAMENTOS (destino
+	 * "payments").
+	 *
+	 * @return array{pending:int,synced:int,failed:int,not_configured:int,last_sync_at:?string}
+	 */
+	public static function get_payment_sync_stats() {
+		return self::get_sync_stats_for( 'payment_' );
+	}
+
+	/**
+	 * Implementação genérica de get_sync_stats().
+	 *
+	 * @param string $prefix Prefixo das colunas de rastreamento.
+	 * @return array{pending:int,synced:int,failed:int,not_configured:int,last_sync_at:?string}
+	 */
+	private static function get_sync_stats_for( $prefix ) {
 		global $wpdb;
 
 		$table = self::table_name();
+		$col   = $prefix . 'excel_sync_status';
 
 		$counts = array(
 			'pending'        => 0,
@@ -714,15 +1153,16 @@ class Database {
 			'not_configured' => 0,
 		);
 
-		$rows = $wpdb->get_results( "SELECT excel_sync_status, COUNT(*) AS total FROM {$table} GROUP BY excel_sync_status", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( "SELECT {$col} AS status, COUNT(*) AS total FROM {$table} GROUP BY {$col}", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		foreach ( $rows ?: array() as $row ) {
-			if ( isset( $counts[ $row['excel_sync_status'] ] ) ) {
-				$counts[ $row['excel_sync_status'] ] = (int) $row['total'];
+			if ( isset( $counts[ $row['status'] ] ) ) {
+				$counts[ $row['status'] ] = (int) $row['total'];
 			}
 		}
 
-		$last_sync_at = $wpdb->get_var( "SELECT MAX(excel_last_sync_at) FROM {$table} WHERE excel_sync_status = 'synced'" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$last_at_col  = $prefix . 'excel_last_sync_at';
+		$last_sync_at = $wpdb->get_var( "SELECT MAX({$last_at_col}) FROM {$table} WHERE {$col} = 'synced'" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		$counts['last_sync_at'] = $last_sync_at ?: null;
 
@@ -800,6 +1240,7 @@ class Database {
 			'search'           => '',
 			'status'           => '',
 			'photo_permission' => '',
+			'payment_status'   => '',
 			'orderby'          => 'created_at',
 			'order'            => 'DESC',
 			'per_page'         => 20,
@@ -808,7 +1249,7 @@ class Database {
 
 		$args = wp_parse_args( $args, $defaults );
 
-		$allowed_orderby = array( 'id', 'registration_number', 'child_name', 'parent_name', 'parent_email', 'phone', 'child_class', 'created_at', 'status', 'photo_permission' );
+		$allowed_orderby = array( 'id', 'registration_number', 'child_name', 'parent_name', 'parent_email', 'phone', 'child_class', 'created_at', 'status', 'photo_permission', 'payment_status' );
 		$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'created_at';
 		$order            = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
 
@@ -823,6 +1264,11 @@ class Database {
 		if ( ! empty( $args['photo_permission'] ) && in_array( $args['photo_permission'], array( 'Yes', 'No' ), true ) ) {
 			$where[]  = 'photo_permission = %s';
 			$values[] = $args['photo_permission'];
+		}
+
+		if ( ! empty( $args['payment_status'] ) && in_array( $args['payment_status'], array( 'paid', 'unpaid' ), true ) ) {
+			$where[]  = 'payment_status = %s';
+			$values[] = $args['payment_status'];
 		}
 
 		if ( ! empty( $args['search'] ) ) {
@@ -884,6 +1330,7 @@ class Database {
 			'search'           => '',
 			'status'           => '',
 			'photo_permission' => '',
+			'payment_status'   => '',
 		);
 		$args     = wp_parse_args( $args, $defaults );
 
@@ -898,6 +1345,11 @@ class Database {
 		if ( ! empty( $args['photo_permission'] ) && in_array( $args['photo_permission'], array( 'Yes', 'No' ), true ) ) {
 			$where[]  = 'photo_permission = %s';
 			$values[] = $args['photo_permission'];
+		}
+
+		if ( ! empty( $args['payment_status'] ) && in_array( $args['payment_status'], array( 'paid', 'unpaid' ), true ) ) {
+			$where[]  = 'payment_status = %s';
+			$values[] = $args['payment_status'];
 		}
 
 		if ( ! empty( $args['search'] ) ) {
@@ -1262,6 +1714,42 @@ class Database {
 			'total_revenue'      => $total,
 			'average'            => $count > 0 ? ( $total / $count ) : 0.0,
 			'count_with_amount' => $count,
+		);
+	}
+
+	/**
+	 * Calcula indicadores de confirmação de pagamento: quantas inscrições
+	 * estão marcadas como pagas/pendentes, e qual parte da receita total
+	 * (campo `total_amount`) já foi efetivamente confirmada. Usado pelo
+	 * cartão opcional "Payment Confirmation" do Dashboard.
+	 *
+	 * @return array{paid: int, unpaid: int, confirmed_revenue: float}
+	 */
+	public static function get_payment_stats() {
+		global $wpdb;
+
+		$table = self::table_name();
+
+		$paid   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE payment_status = %s", 'paid' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$unpaid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE payment_status = %s", 'unpaid' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$paid_amounts = $wpdb->get_col(
+			$wpdb->prepare( "SELECT total_amount FROM {$table} WHERE payment_status = %s AND total_amount != ''", 'paid' ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+
+		$confirmed_revenue = 0.0;
+		foreach ( $paid_amounts ?: array() as $raw_amount ) {
+			$amount = mcr_parse_amount_to_float( $raw_amount );
+
+			if ( null !== $amount ) {
+				$confirmed_revenue += $amount;
+			}
+		}
+
+		return array(
+			'paid'              => $paid,
+			'unpaid'            => $unpaid,
+			'confirmed_revenue' => $confirmed_revenue,
 		);
 	}
 

@@ -43,6 +43,18 @@ class Excel_OAuth {
 	const OPTION_NAME = 'mcr_excel_connection';
 
 	/**
+	 * Chave do destino de sincronização padrão - o único que existia
+	 * antes da versão 2.10.0 (Registrations). Usado como valor padrão
+	 * sempre que um destino não é informado explicitamente, mantendo o
+	 * comportamento de instalações anteriores sem exigir nenhuma
+	 * alteração de código nos pontos que ainda não precisam saber sobre
+	 * múltiplos destinos.
+	 *
+	 * @var string
+	 */
+	const DEFAULT_TARGET = 'registrations';
+
+	/**
 	 * Nome da transient usada para validar o parâmetro `state` do OAuth
 	 * (proteção CSRF), única por usuário.
 	 *
@@ -73,18 +85,88 @@ class Excel_OAuth {
 
 	/**
 	 * Retorna o estado completo da conexão, já mesclado com os valores
-	 * padrão.
+	 * padrão. A partir da versão 2.10.0, a seleção de workbook/worksheet/
+	 * tabela/mapeamento deixou de ficar nas chaves de primeiro nível e
+	 * passou a viver dentro de `targets[destino]` - permitindo múltiplas
+	 * tabelas do Excel independentes (Registrations, Payments, e futuros
+	 * destinos) compartilhando a mesma conta Microsoft conectada.
 	 *
 	 * @return array
 	 */
 	public static function get_connection() {
 		$defaults = array(
-			'connected'         => false,
-			'account_email'     => '',
-			'account_name'      => '',
-			'access_token'      => '',
-			'refresh_token'     => '',
-			'token_expires_at'  => 0,
+			'connected'        => false,
+			'account_email'    => '',
+			'account_name'     => '',
+			'access_token'     => '',
+			'refresh_token'    => '',
+			'token_expires_at' => 0,
+			'connected_at'     => 0,
+			'targets'          => array(),
+		);
+
+		$saved = get_option( self::OPTION_NAME, array() );
+
+		if ( ! is_array( $saved ) ) {
+			$saved = array();
+		}
+
+		// Migração retrocompatível: instalações de antes da 2.10.0 tinham
+		// a configuração da tabela do Excel diretamente nas chaves de
+		// primeiro nível. Movemos isso, uma única vez, para
+		// targets['registrations'] - o destino padrão, que já vinha sendo
+		// usado por essas instalações - sem exigir nenhuma reconfiguração
+		// manual do administrador.
+		$legacy_keys = array( 'drive_id', 'item_id', 'workbook_name', 'worksheet_name', 'table_id', 'table_name', 'table_columns', 'field_mapping', 'auto_sync_enabled' );
+
+		if ( empty( $saved['targets'][ self::DEFAULT_TARGET ] ) && ! empty( $saved['drive_id'] ) ) {
+			$legacy_target = array();
+
+			foreach ( $legacy_keys as $key ) {
+				if ( isset( $saved[ $key ] ) ) {
+					$legacy_target[ $key ] = $saved[ $key ];
+				}
+				unset( $saved[ $key ] );
+			}
+
+			$saved['targets'][ self::DEFAULT_TARGET ] = $legacy_target;
+
+			update_option( self::OPTION_NAME, $saved );
+		}
+
+		$connection = wp_parse_args( $saved, $defaults );
+
+		// Garante que cada destino conhecido sempre tenha o formato
+		// completo, mesmo que ainda não tenha sido configurado.
+		foreach ( self::get_target_keys() as $target_key ) {
+			$connection['targets'][ $target_key ] = wp_parse_args(
+				$connection['targets'][ $target_key ] ?? array(),
+				self::get_default_target_shape()
+			);
+		}
+
+		return $connection;
+	}
+
+	/**
+	 * Lista os destinos de sincronização conhecidos pelo plugin. Cada
+	 * destino tem sua própria seleção de workbook/worksheet/tabela e seu
+	 * próprio mapeamento de campos, mas compartilha a mesma conta
+	 * Microsoft conectada.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function get_target_keys() {
+		return array( 'registrations', 'payments' );
+	}
+
+	/**
+	 * Formato padrão (vazio) de um destino de sincronização.
+	 *
+	 * @return array
+	 */
+	public static function get_default_target_shape() {
+		return array(
 			'drive_id'          => '',
 			'item_id'           => '',
 			'workbook_name'     => '',
@@ -94,16 +176,39 @@ class Excel_OAuth {
 			'table_columns'     => array(),
 			'field_mapping'     => array(),
 			'auto_sync_enabled' => true,
-			'connected_at'      => 0,
 		);
+	}
 
-		$saved = get_option( self::OPTION_NAME, array() );
+	/**
+	 * Retorna a configuração de um destino específico (ex: "registrations"
+	 * ou "payments").
+	 *
+	 * @param string $target Chave do destino.
+	 * @return array
+	 */
+	public static function get_target_connection( $target ) {
+		$connection = self::get_connection();
 
-		if ( ! is_array( $saved ) ) {
-			$saved = array();
-		}
+		return $connection['targets'][ $target ] ?? self::get_default_target_shape();
+	}
 
-		return wp_parse_args( $saved, $defaults );
+	/**
+	 * Atualiza (mescla) a configuração de um destino específico, sem
+	 * afetar os demais destinos nem os dados de autenticação
+	 * compartilhados (tokens, conta conectada).
+	 *
+	 * @param string $target Chave do destino.
+	 * @param array  $data   Campos a atualizar.
+	 * @return array Configuração completa do destino após a atualização.
+	 */
+	public static function update_target_connection( $target, array $data ) {
+		$connection = self::get_connection();
+
+		$connection['targets'][ $target ] = wp_parse_args( $data, $connection['targets'][ $target ] ?? self::get_default_target_shape() );
+
+		update_option( self::OPTION_NAME, $connection );
+
+		return $connection['targets'][ $target ];
 	}
 
 	/**
@@ -145,18 +250,22 @@ class Excel_OAuth {
 	}
 
 	/**
-	 * Verifica se a seleção de workbook/worksheet/table foi concluída.
+	 * Verifica se a seleção de workbook/worksheet/tabela foi concluída
+	 * para um destino específico (por padrão, "registrations" - mantendo
+	 * o comportamento de instalações anteriores à 2.10.0, que só conheciam
+	 * esse destino).
 	 *
+	 * @param string $target Chave do destino.
 	 * @return bool
 	 */
-	public static function is_fully_configured() {
-		$connection = self::get_connection();
+	public static function is_fully_configured( $target = self::DEFAULT_TARGET ) {
+		$target_connection = self::get_target_connection( $target );
 
 		return self::is_connected()
-			&& ! empty( $connection['drive_id'] )
-			&& ! empty( $connection['item_id'] )
-			&& ! empty( $connection['worksheet_name'] )
-			&& ! empty( $connection['table_id'] );
+			&& ! empty( $target_connection['drive_id'] )
+			&& ! empty( $target_connection['item_id'] )
+			&& ! empty( $target_connection['worksheet_name'] )
+			&& ! empty( $target_connection['table_id'] );
 	}
 
 	/**

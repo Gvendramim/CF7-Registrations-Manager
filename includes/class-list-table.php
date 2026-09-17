@@ -51,6 +51,7 @@ class List_Table extends \WP_List_Table {
 			'phone'                => __( 'Primary Phone', 'music-club-registrations' ),
 			'interests'            => __( 'Interests', 'music-club-registrations' ),
 			'photo_permission'     => __( 'Photo Permission', 'music-club-registrations' ),
+			'payment_status'       => __( 'Payment', 'music-club-registrations' ),
 			'created_at'           => __( 'Date', 'music-club-registrations' ),
 			'status'               => __( 'Status', 'music-club-registrations' ),
 			'excel_sync_status'    => __( 'Excel Sync', 'music-club-registrations' ),
@@ -71,6 +72,7 @@ class List_Table extends \WP_List_Table {
 			'created_at'           => array( 'created_at', true ),
 			'status'               => array( 'status', false ),
 			'photo_permission'     => array( 'photo_permission', false ),
+			'payment_status'       => array( 'payment_status', false ),
 		);
 	}
 
@@ -246,8 +248,18 @@ class List_Table extends \WP_List_Table {
 	}
 
 	/**
-	 * Exibe os filtros extras (por status e por permissão de fotografia)
-	 * acima da tabela.
+	 * Renderiza a coluna de status de confirmação de pagamento.
+	 *
+	 * @param array $item Linha atual.
+	 * @return string
+	 */
+	protected function column_payment_status( $item ) {
+		return mcr_render_payment_status_badge( $item['payment_status'] ?? 'unpaid' );
+	}
+
+	/**
+	 * Exibe os filtros extras (por status, por permissão de fotografia e
+	 * por confirmação de pagamento) acima da tabela.
 	 *
 	 * @param string $which 'top' ou 'bottom'.
 	 * @return void
@@ -257,8 +269,9 @@ class List_Table extends \WP_List_Table {
 			return;
 		}
 
-		$current_status = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
-		$current_photo  = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
+		$current_status  = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+		$current_photo   = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
+		$current_payment = isset( $_REQUEST['payment_status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['payment_status'] ) ) : '';
 		?>
 		<div class="alignleft actions">
 			<label for="mcr-filter-status" class="screen-reader-text">
@@ -282,6 +295,15 @@ class List_Table extends \WP_List_Table {
 				<option value="No" <?php selected( $current_photo, 'No' ); ?>><?php esc_html_e( 'No', 'music-club-registrations' ); ?></option>
 			</select>
 
+			<label for="mcr-filter-payment-status" class="screen-reader-text">
+				<?php esc_html_e( 'Filter by payment status', 'music-club-registrations' ); ?>
+			</label>
+			<select name="payment_status" id="mcr-filter-payment-status">
+				<option value=""><?php esc_html_e( 'All payment statuses', 'music-club-registrations' ); ?></option>
+				<option value="paid" <?php selected( $current_payment, 'paid' ); ?>><?php esc_html_e( 'Paid', 'music-club-registrations' ); ?></option>
+				<option value="unpaid" <?php selected( $current_payment, 'unpaid' ); ?>><?php esc_html_e( 'Unpaid', 'music-club-registrations' ); ?></option>
+			</select>
+
 			<?php submit_button( __( 'Filter', 'music-club-registrations' ), '', 'filter_action', false ); ?>
 		</div>
 		<?php
@@ -301,6 +323,7 @@ class List_Table extends \WP_List_Table {
 		$search           = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 		$status           = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
 		$photo_permission = isset( $_REQUEST['photo_permission'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['photo_permission'] ) ) : '';
+		$payment_status   = isset( $_REQUEST['payment_status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['payment_status'] ) ) : '';
 		$orderby = isset( $_REQUEST['orderby'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['orderby'] ) ) : 'created_at';
 		$order   = isset( $_REQUEST['order'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['order'] ) ) : 'DESC';
 
@@ -309,6 +332,7 @@ class List_Table extends \WP_List_Table {
 				'search'           => $search,
 				'status'           => $status,
 				'photo_permission' => $photo_permission,
+				'payment_status'   => $payment_status,
 				'orderby'          => $orderby,
 				'order'            => $order,
 				'per_page'         => $per_page,
