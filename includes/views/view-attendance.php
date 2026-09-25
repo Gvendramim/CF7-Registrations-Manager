@@ -177,6 +177,7 @@ function mcr_attendance_tab_url( $tab ) {
 					<span class="mcr-attendance-counter" id="mcr-attendance-counter" aria-live="polite"></span>
 				</div>
 
+				<div class="mcr-table-scroll">
 				<table class="widefat mcr-attendance-table">
 					<thead>
 						<tr>
@@ -225,6 +226,7 @@ function mcr_attendance_tab_url( $tab ) {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				</div>
 
 				<p class="submit">
 					<button type="submit" class="button button-primary" id="mcr-save-attendance-btn"><?php esc_html_e( 'Save Attendance', 'music-club-registrations' ); ?></button>
@@ -264,6 +266,7 @@ function mcr_attendance_tab_url( $tab ) {
 
 		<?php else : ?>
 
+			<div class="mcr-table-scroll">
 			<table class="widefat mcr-attendance-history-table">
 				<thead>
 					<tr>
@@ -294,6 +297,7 @@ function mcr_attendance_tab_url( $tab ) {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+		</div>
 
 		<?php endif; ?>
 

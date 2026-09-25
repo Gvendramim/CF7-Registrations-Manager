@@ -17,7 +17,15 @@
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 	color: #1d2327;
 	max-width: 1100px;
+	width: 100%;
 	margin: 0 auto;
+	box-sizing: border-box;
+	overflow-x: hidden;
+}
+
+.mcr-frontend-attendance,
+.mcr-frontend-attendance * {
+	box-sizing: border-box;
 }
 
 .mcr-frontend-attendance h2,
@@ -36,11 +44,13 @@
 	border-bottom: 1px solid #dcdcde;
 	margin: 0 0 20px;
 	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
 }
 
 .mcr-frontend-attendance .nav-tab {
 	display: inline-block;
-	padding: 10px 16px;
+	padding: 10px 12px;
 	margin-right: 4px;
 	text-decoration: none;
 	border: 1px solid #dcdcde;
@@ -49,8 +59,10 @@
 	background: #f0f0f1;
 	color: #1d2327;
 	font-weight: 600;
+	font-size: 14px;
 	position: relative;
 	top: 1px;
+	white-space: nowrap;
 }
 
 .mcr-frontend-attendance .nav-tab-active {
@@ -61,7 +73,7 @@
 /* Botões */
 .mcr-frontend-attendance .button {
 	display: inline-block;
-	padding: 8px 14px;
+	padding: 10px 14px;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
 	background: #f6f7f7;
@@ -86,24 +98,26 @@
 	background: #135e96;
 }
 
-/* Formulário de carregar/filtrar */
+/* Formulário de carregar/filtrar - empilhado por padrão (mobile),
+   volta a ficar em linha a partir de 783px (ver media query no fim
+   deste arquivo). */
 .mcr-frontend-attendance .mcr-attendance-load-form label {
-	margin-right: 4px;
+	display: block;
+	margin: 0 0 4px;
 }
 
 .mcr-frontend-attendance .mcr-attendance-load-form select,
 .mcr-frontend-attendance .mcr-attendance-load-form input[type="date"] {
-	padding: 6px 8px;
+	padding: 8px;
 	border: 1px solid #8c8f94;
 	border-radius: 4px;
-	margin-right: 12px;
+	font-size: 16px; /* evita zoom automático ao focar em iOS */
 }
 
 /* Tabela (equivalente a .widefat do wp-admin) */
 .mcr-frontend-attendance .widefat {
 	width: 100%;
 	border-collapse: collapse;
-	border: 1px solid #c3c4c7;
 	background: #fff;
 }
 
@@ -117,6 +131,7 @@
 	background: #f6f7f7;
 	font-weight: 600;
 	border-bottom: 1px solid #c3c4c7;
+	white-space: nowrap;
 }
 
 /* Avisos (equivalente a .notice do wp-admin) */
@@ -137,8 +152,7 @@
 .mcr-frontend-attendance .notice-error { border-left-color: #c62828; }
 
 /* Campos de texto (equivalente a .regular-text do wp-admin) */
-.mcr-frontend-attendance input[type="text"].regular-text,
-.mcr-frontend-attendance .mcr-attendance-notes {
+.mcr-frontend-attendance input[type="text"].regular-text {
 	padding: 6px 8px;
 	border: 1px solid #8c8f94;
 	border-radius: 4px;
@@ -149,4 +163,18 @@
 
 .mcr-frontend-attendance .submit {
 	margin-top: 16px;
+}
+
+/* A partir daqui, telas maiores: volta ao layout em linha para os
+   campos do formulário de carregar/filtrar. */
+@media (min-width: 783px) {
+	.mcr-frontend-attendance .mcr-attendance-load-form label {
+		display: inline-block;
+		margin: 0 4px 0 0;
+	}
+
+	.mcr-frontend-attendance .mcr-attendance-load-form select,
+	.mcr-frontend-attendance .mcr-attendance-load-form input[type="date"] {
+		margin-right: 12px;
+	}
 }

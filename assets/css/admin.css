@@ -691,29 +691,64 @@
 	color: #9a6700;
 }
 
-/* Attendance */
+/* Attendance
+   -----------------------------------------------------------------
+   Mobile-first: o estilo abaixo (sem media query) é o que vale em
+   telas pequenas - tudo empilhado em coluna, ocupando a largura
+   inteira disponível, e a tabela dentro de um contêiner com rolagem
+   HORIZONTAL PRÓPRIA (.mcr-table-scroll), para que só a tabela role
+   de lado a lado, nunca a página inteira. A partir de 783px (mesmo
+   ponto de corte que o próprio wp-admin usa para "modo desktop"), os
+   elementos voltam a ficar lado a lado numa única linha. */
+
 .mcr-attendance-load-form {
 	display: flex;
-	align-items: center;
+	flex-direction: column;
+	align-items: stretch;
 	gap: 10px;
-	flex-wrap: wrap;
 	margin: 16px 0;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 6px;
 	padding: 16px;
-	max-width: 700px;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .mcr-attendance-load-form label {
 	font-weight: 600;
 }
 
+.mcr-attendance-load-form select,
+.mcr-attendance-load-form input[type="date"] {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.mcr-attendance-load-form .button {
+	width: 100%;
+	text-align: center;
+}
+
+/* Contêiner de rolagem: a tabela em si mantém uma largura mínima
+   legível (não espreme as colunas a ponto de ficarem ilegíveis); se
+   isso for mais largo que a tela, rola só DENTRO desta caixa. */
+.mcr-table-scroll {
+	max-width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	margin: 12px 0 20px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
 .mcr-attendance-table,
 .mcr-attendance-history-table,
 .mcr-attendance-mini-table {
-	margin: 12px 0 20px;
-	max-width: 1100px;
+	margin: 0;
+	width: 100%;
+	min-width: 640px;
+	border: none;
 }
 
 .mcr-attendance-table th,
@@ -730,6 +765,7 @@
 
 .mcr-attendance-mini-table {
 	font-size: 13px;
+	min-width: 0;
 }
 
 .mcr-attendance-mini-note-row td {
@@ -738,21 +774,31 @@
 	padding-bottom: 8px;
 }
 
+.mcr-attendance-notes {
+	width: 160px;
+	max-width: 160px;
+}
+
 /* Toolbar acima da lista: "Mark all as Present", "Copy from Last
    Session" e o contador ao vivo. */
 .mcr-attendance-toolbar {
 	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
 	margin: 12px 0;
 }
 
+.mcr-attendance-toolbar .button {
+	width: 100%;
+	text-align: center;
+}
+
 .mcr-attendance-counter {
-	margin-left: auto;
 	font-size: 14px;
 	font-weight: 600;
-	white-space: nowrap;
+	white-space: normal;
+	word-break: break-word;
 }
 
 .mcr-counter-not-marked {
@@ -771,16 +817,19 @@
 .mcr-status-buttons {
 	display: flex;
 	gap: 4px;
+	flex-wrap: nowrap;
 }
 
 .mcr-status-btn {
-	width: 32px;
-	height: 32px;
+	width: 36px;
+	height: 36px;
+	flex: 0 0 auto;
 	border-radius: 4px;
 	border: 1px solid #dcdcde;
 	background: #fff;
 	color: #646970;
 	font-weight: 700;
+	font-size: 15px;
 	cursor: pointer;
 	transition: transform 0.05s ease-in-out;
 }
@@ -811,6 +860,41 @@
 	background: #2271b1;
 	border-color: #2271b1;
 	color: #fff;
+}
+
+/* A partir daqui, telas maiores (tablet paisagem/desktop): volta ao
+   layout em linha, mais compacto, já que há espaço de sobra. */
+@media (min-width: 783px) {
+	.mcr-attendance-load-form {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+		max-width: 700px;
+	}
+
+	.mcr-attendance-load-form select,
+	.mcr-attendance-load-form input[type="date"] {
+		width: auto;
+	}
+
+	.mcr-attendance-load-form .button {
+		width: auto;
+	}
+
+	.mcr-attendance-toolbar {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+
+	.mcr-attendance-toolbar .button {
+		width: auto;
+	}
+
+	.mcr-attendance-counter {
+		margin-left: auto;
+		white-space: nowrap;
+	}
 }
 
 .mcr-absence-warning {

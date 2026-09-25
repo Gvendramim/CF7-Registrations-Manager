@@ -158,6 +158,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<span class="mcr-attendance-counter" id="mcr-attendance-counter" aria-live="polite"></span>
 				</div>
 
+				<div class="mcr-table-scroll">
 				<table class="widefat mcr-attendance-table">
 					<thead>
 						<tr>
@@ -206,6 +207,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				</div>
 
 				<p class="submit">
 					<button type="submit" class="button button-primary" id="mcr-save-attendance-btn"><?php esc_html_e( 'Save Attendance', 'music-club-registrations' ); ?></button>
@@ -244,6 +246,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 		<?php else : ?>
 
+			<div class="mcr-table-scroll">
 			<table class="widefat mcr-attendance-history-table">
 				<thead>
 					<tr>
@@ -274,6 +277,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+		</div>
 
 		<?php endif; ?>
 

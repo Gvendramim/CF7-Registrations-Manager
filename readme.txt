@@ -4,7 +4,7 @@ Tags: contact form 7, registrations, forms, database, export, dashboard, rest ap
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 8.1
-Stable tag: 2.1
+Stable tag: 2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,9 @@ Only if you explicitly enable "Remove Data" on the Settings screen. By default, 
 Yes. Add the `[mcr_attendance]` shortcode to any WordPress Page, then set that Page's visibility to "Password Protected" (in the Publish box). Anyone with the page's password can take attendance and view history from that page — without ever seeing wp-admin. The password is checked again on every save, so the attendance form can't be submitted by going around the password screen.
 
 == Changelog ==
+
+= 2.2 =
+* Fixed the Attendance screen (both in wp-admin and the public `[mcr_attendance]` page) overflowing horizontally on mobile — the Program/Date form, the Mark all/Copy Last Session/counter toolbar, and the status buttons now stack vertically and fit the screen on narrow viewports, switching back to a single-row layout automatically on tablet/desktop widths. The student table now scrolls horizontally within its own box when needed, instead of forcing the whole page to scroll sideways.
 
 = 2.1 =
 * New `[mcr_attendance]` shortcode: add the Attendance screen (Take Attendance + History, with all the same buttons, live counter and warnings as the admin screen) to any front-end WordPress Page. Access is protected by the page's own native WordPress password protection — no new user role or login system to manage. The password is re-verified on save, not just on page view, so the save endpoint can't be reached by skipping the password screen.
