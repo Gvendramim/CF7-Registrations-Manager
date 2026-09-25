@@ -1,6 +1,21 @@
 <?php
 /**
- * Shortcode [mcr_attendance]
+ * Shortcode `[mcr_attendance]` — exibe o sistema de Presença fora do
+ * admin, numa página comum do WordPress, para que o cliente (ex: um
+ * professor) não precise ter acesso ao painel administrativo.
+ *
+ * O acesso é protegido pela própria proteção por senha nativa do
+ * WordPress: o administrador cria uma Página, cola o shortcode, e marca
+ * a página como "Protegida por senha" (Visibilidade, na barra lateral de
+ * Publicar). Enquanto a senha da PÁGINA não for informada pelo
+ * visitante, nada do conteúdo (incluindo este shortcode) é exibido - o
+ * WordPress mostra apenas o formulário de senha automaticamente.
+ *
+ * Esse mesmo travamento é verificado de novo no momento de salvar uma
+ * chamada (handle_save_attendance()), para impedir que alguém envie o
+ * formulário diretamente para admin-post.php sem nunca ter passado pela
+ * tela de senha.
+ *
  * @package Music_Club_Registrations
  */
 
@@ -16,11 +31,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Attendance_Shortcode {
 
 	/**
+	 * Ação usada no admin-post.php para o envio do formulário público.
+	 * Tem um nome próprio (diferente do usado pela tela de admin) para
+	 * manter os dois fluxos completamente independentes.
+	 *
 	 * @var string
 	 */
 	const SAVE_ACTION = 'mcr_save_attendance_public';
 
 	/**
+	 * Registra o shortcode, o handler de salvamento (disponível também
+	 * para visitantes não autenticados, via o sufixo "_nopriv_") e o
+	 * enfileiramento condicional dos assets.
+	 *
 	 * @return void
 	 */
 	public function register_hooks() {

@@ -1,13 +1,17 @@
 <?php
 /**
  * Plugin Name:       CF7 Registrations Manager
- * Description:       Captura e gerencia automaticamente as inscrições enviadas por qualquer formulário do Contact Form 7 escolhido pelo administrador, armazenando os dados em uma tabela própria, com dashboard, mapeamento de campos configurável, painel administrativo completo, sistema de logs, exportação e API REST.
+ * Plugin URI:        https://example.com/cf7-registrations-manager
+ * Description:       Captura e gerencia automaticamente as inscrições enviadas por qualquer formulário do Contact Form 7 escolhido pelo administrador, armazenando os dados em uma tabela própria, com dashboard, mapeamento de campos configurável, painel administrativo completo, sistema de logs, exportação e API REST — sem nenhum ID de formulário ou nome de campo fixo no código.
  * Version:           2.1
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Gabriel Vendramim Ferreira
+ * Author URI:        https://example.com
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       music-club-registrations
+ * Domain Path:       /languages
  *
  * @package Music_Club_Registrations
  */
@@ -17,7 +21,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MCR_VERSION', '2.0' );
+/**
+ * -----------------------------------------------------------------------
+ * Constantes globais do plugin
+ * -----------------------------------------------------------------------
+ */
+
+// Versão do plugin (utilizada para controle de cache de assets e migrações de banco).
+define( 'MCR_VERSION', '2.1' );
 
 // Caminhos e URLs úteis.
 define( 'MCR_PLUGIN_FILE', __FILE__ );
@@ -60,6 +71,7 @@ require_once MCR_PLUGIN_DIR . 'includes/class-form-handler.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-list-table.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-admin.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-attendance-admin.php';
+require_once MCR_PLUGIN_DIR . 'includes/class-attendance-shortcode.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-xlsx-writer.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-export.php';
 require_once MCR_PLUGIN_DIR . 'includes/class-excel-oauth.php';
