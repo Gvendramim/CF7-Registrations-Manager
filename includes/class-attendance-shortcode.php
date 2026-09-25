@@ -16,19 +16,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Attendance_Shortcode {
 
 	/**
-	 * Ação usada no admin-post.php para o envio do formulário público.
-	 * Tem um nome próprio (diferente do usado pela tela de admin) para
-	 * manter os dois fluxos completamente independentes.
-	 *
 	 * @var string
 	 */
 	const SAVE_ACTION = 'mcr_save_attendance_public';
 
 	/**
-	 * Registra o shortcode, o handler de salvamento (disponível também
-	 * para visitantes não autenticados, via o sufixo "_nopriv_") e o
-	 * enfileiramento condicional dos assets.
-	 *
 	 * @return void
 	 */
 	public function register_hooks() {
