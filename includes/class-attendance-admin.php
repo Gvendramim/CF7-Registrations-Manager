@@ -101,61 +101,7 @@ class Attendance_Admin {
 	 * @return array<int,array{program:string,attendance_date:string,present:int,absent:int,late:int,excused:int,total:int}>
 	 */
 	private function get_history_rows( $program, $date_from = '', $date_to = '' ) {
-		global $wpdb;
-
-		$table = Attendance::table_name();
-		$where = array();
-		$args  = array();
-
-		if ( '' !== $program ) {
-			$where[] = 'program = %s';
-			$args[]  = $program;
-		}
-
-		if ( '' !== $date_from ) {
-			$where[] = 'attendance_date >= %s';
-			$args[]  = $date_from;
-		}
-
-		if ( '' !== $date_to ) {
-			$where[] = 'attendance_date <= %s';
-			$args[]  = $date_to;
-		}
-
-		$where_sql = $where ? ' WHERE ' . implode( ' AND ', $where ) : '';
-
-		$sql = "SELECT program, attendance_date, status, COUNT(*) as total
-			FROM {$table}{$where_sql}
-			GROUP BY program, attendance_date, status
-			ORDER BY attendance_date DESC, program ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-
-		$rows = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-
-		$sessions = array();
-
-		foreach ( $rows ?: array() as $row ) {
-			$key = $row['program'] . '|' . $row['attendance_date'];
-
-			if ( ! isset( $sessions[ $key ] ) ) {
-				$sessions[ $key ] = array(
-					'program'         => $row['program'],
-					'attendance_date' => $row['attendance_date'],
-					'present'         => 0,
-					'absent'          => 0,
-					'late'            => 0,
-					'excused'         => 0,
-					'total'           => 0,
-				);
-			}
-
-			if ( isset( $sessions[ $key ][ $row['status'] ] ) ) {
-				$sessions[ $key ][ $row['status'] ] = (int) $row['total'];
-			}
-
-			$sessions[ $key ]['total'] += (int) $row['total'];
-		}
-
-		return array_values( $sessions );
+		return Attendance::get_history_sessions( $program, $date_from, $date_to );
 	}
 
 	/**
@@ -173,23 +119,9 @@ class Attendance_Admin {
 		$program = isset( $_POST['program'] ) ? sanitize_text_field( wp_unslash( $_POST['program'] ) ) : '';
 		$date    = isset( $_POST['attendance_date'] ) ? sanitize_text_field( wp_unslash( $_POST['attendance_date'] ) ) : '';
 
-		$entries = array();
-
-		if ( isset( $_POST['attendance'] ) && is_array( $_POST['attendance'] ) ) {
-			foreach ( wp_unslash( $_POST['attendance'] ) as $registration_id => $entry ) {
-				$entries[ absint( $registration_id ) ] = array(
-					'status' => isset( $entry['status'] ) ? sanitize_key( $entry['status'] ) : 'not_marked',
-					'notes'  => isset( $entry['notes'] ) ? sanitize_text_field( $entry['notes'] ) : '',
-				);
-			}
-		}
-
-		$attempted = 0;
-		foreach ( $entries as $entry ) {
-			if ( isset( $entry['status'] ) && 'not_marked' !== $entry['status'] ) {
-				++$attempted;
-			}
-		}
+		$parsed    = Attendance::parse_submitted_entries( isset( $_POST['attendance'] ) ? wp_unslash( $_POST['attendance'] ) : array() ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitizado dentro do parser.
+		$entries   = $parsed['entries'];
+		$attempted = $parsed['attempted'];
 
 		$saved = Attendance::save_attendance( $program, $date, $entries, get_current_user_id() );
 

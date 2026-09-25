@@ -75,6 +75,11 @@ class Loader {
 		// API REST protegida.
 		( new REST_API() )->register_hooks();
 
+		// Shortcode [mcr_attendance]: precisa ficar disponível no site
+		// público (fora do admin), já que é exatamente aí que ele é
+		// usado - numa página comum, protegida por senha.
+		( new Attendance_Shortcode() )->register_hooks();
+
 		// Área administrativa: só é necessário carregar no contexto de admin,
 		// mas os hooks internos (admin_menu, admin_init etc.) já garantem
 		// isso nativamente. Registrar sempre mantém o código mais simples

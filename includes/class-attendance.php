@@ -494,6 +494,119 @@ class Attendance {
 	}
 
 	/**
+	 * Lê e sanitiza os dados de chamada enviados por um formulário (tanto
+	 * a tela do admin quanto a página pública via shortcode usam este
+	 * mesmo método, para que as duas telas nunca divirjam na forma de
+	 * interpretar o que foi enviado).
+	 *
+	 * @param mixed $raw Valor bruto de $_POST['attendance'] (já com wp_unslash()).
+	 * @return array{entries: array<int,array{status:string,notes:string}>, attempted: int}
+	 */
+	public static function parse_submitted_entries( $raw ) {
+		$entries   = array();
+		$attempted = 0;
+
+		if ( ! is_array( $raw ) ) {
+			return array(
+				'entries'   => $entries,
+				'attempted' => $attempted,
+			);
+		}
+
+		foreach ( $raw as $registration_id => $entry ) {
+			$registration_id = absint( $registration_id );
+
+			if ( ! $registration_id || ! is_array( $entry ) ) {
+				continue;
+			}
+
+			$status = isset( $entry['status'] ) ? sanitize_key( $entry['status'] ) : 'not_marked';
+
+			$entries[ $registration_id ] = array(
+				'status' => $status,
+				'notes'  => isset( $entry['notes'] ) ? sanitize_text_field( $entry['notes'] ) : '',
+			);
+
+			if ( array_key_exists( $status, self::STATUSES ) ) {
+				++$attempted;
+			}
+		}
+
+		return array(
+			'entries'   => $entries,
+			'attempted' => $attempted,
+		);
+	}
+
+	/**
+	 * Retorna as chamadas já feitas, agrupadas por sessão (programa +
+	 * data), opcionalmente filtradas por programa e intervalo de datas.
+	 * Usado pela aba "History" tanto no admin quanto na página pública.
+	 *
+	 * @param string $program   Programa específico, ou '' para todos.
+	 * @param string $date_from Data inicial (Y-m-d), ou '' para não limitar.
+	 * @param string $date_to   Data final (Y-m-d), ou '' para não limitar.
+	 * @return array<int,array{program:string,attendance_date:string,present:int,absent:int,late:int,excused:int,total:int}>
+	 */
+	public static function get_history_sessions( $program = '', $date_from = '', $date_to = '' ) {
+		global $wpdb;
+
+		$table = self::table_name();
+		$where = array();
+		$args  = array();
+
+		if ( '' !== (string) $program ) {
+			$where[] = 'program = %s';
+			$args[]  = $program;
+		}
+
+		if ( '' !== (string) $date_from && self::sanitize_date( $date_from ) ) {
+			$where[] = 'attendance_date >= %s';
+			$args[]  = $date_from;
+		}
+
+		if ( '' !== (string) $date_to && self::sanitize_date( $date_to ) ) {
+			$where[] = 'attendance_date <= %s';
+			$args[]  = $date_to;
+		}
+
+		$where_sql = $where ? ' WHERE ' . implode( ' AND ', $where ) : '';
+
+		$sql = "SELECT program, attendance_date, status, COUNT(*) as total
+			FROM {$table}{$where_sql}
+			GROUP BY program, attendance_date, status
+			ORDER BY attendance_date DESC, program ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$rows = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$sessions = array();
+
+		foreach ( $rows ?: array() as $row ) {
+			$key = $row['program'] . '|' . $row['attendance_date'];
+
+			if ( ! isset( $sessions[ $key ] ) ) {
+				$sessions[ $key ] = array(
+					'program'         => $row['program'],
+					'attendance_date' => $row['attendance_date'],
+					'present'         => 0,
+					'absent'          => 0,
+					'late'            => 0,
+					'excused'         => 0,
+					'total'           => 0,
+				);
+			}
+
+			if ( isset( $sessions[ $key ][ $row['status'] ] ) ) {
+				$sessions[ $key ][ $row['status'] ] = (int) $row['total'];
+			}
+
+			$sessions[ $key ]['total'] += (int) $row['total'];
+		}
+
+		return array_values( $sessions );
+	}
+
+	/**
 	 * Valida e normaliza uma data recebida (formato Y-m-d).
 	 *
 	 * @param string $date Data bruta.

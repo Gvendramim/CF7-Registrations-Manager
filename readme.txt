@@ -4,7 +4,7 @@ Tags: contact form 7, registrations, forms, database, export, dashboard, rest ap
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 8.1
-Stable tag: 2.0
+Stable tag: 2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,7 +22,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 **Native CSV & Excel export** — CSV uses UTF-8 BOM and an automatically detected delimiter (`;` for locales like pt_BR, de_DE, fr_FR; `,` for en_US), so it always opens correctly in Excel Windows, Excel Online, and LibreOffice. Excel (.xlsx) files are generated with a dependency-free native writer (uses PHP's built-in ZipArchive extension) — no library installation, ever. If ZipArchive is unavailable on a host, the plugin shows a friendly notice and CSV export keeps working; it never throws a fatal error.
 
-**Excel Online integration** — Connect your Microsoft 365 account with OAuth 2.0 by clicking "Connect Microsoft 365". The plugin automatically discovers available workbooks, worksheets and tables, allowing the administrator to select the destination and map columns without entering Tenant ID, Client ID or Client Secret. Registrations and payments can use independent Excel tables while sharing the same Microsoft 365 connection.
+**Excel Online integration** — connect via the Microsoft Graph API (Tenant ID, Client ID, Client Secret, Workbook, Worksheet, Table) with a one-click "Test Connection" button. Once connected, every new registration is pushed to the configured table automatically.
 
 **REST API** — auto-registered at `cf7-registrations/v1`, with `GET registrations`, `GET registration/{id}`, `POST registration/status`, `DELETE registration/{id}`, `GET export.csv` and `GET export.xlsx`. Authenticate with a simple API key (auto-generated) via header or query parameter — ideal for Excel, Power BI, or other external tools. Includes built-in rate limiting.
 
@@ -36,7 +36,7 @@ CF7 Registrations Manager is a production-ready, self-contained plugin. Every de
 
 == Installation ==
 
-1. Upload the `cf7-registrations-manager` folder to `/wp-content/plugins/`.
+1. Upload the `music-club-registrations` folder to `/wp-content/plugins/`.
 2. Activate the plugin from the "Plugins" menu.
 3. The Setup Wizard opens automatically — follow the six steps (environment check, form selection, field mapping, database setup, API key, final test).
 4. That's it. No Composer, no terminal, no manual library installation.
@@ -63,8 +63,14 @@ Yes. Every endpoint requires a valid API key (sent as a header or query paramete
 
 Only if you explicitly enable "Remove Data" on the Settings screen. By default, all data is preserved.
 
+= Can I let a teacher take attendance without giving them a WordPress admin account? =
+
+Yes. Add the `[mcr_attendance]` shortcode to any WordPress Page, then set that Page's visibility to "Password Protected" (in the Publish box). Anyone with the page's password can take attendance and view history from that page — without ever seeing wp-admin. The password is checked again on every save, so the attendance form can't be submitted by going around the password screen.
+
 == Changelog ==
 
+= 2.1 =
+* New `[mcr_attendance]` shortcode: add the Attendance screen (Take Attendance + History, with all the same buttons, live counter and warnings as the admin screen) to any front-end WordPress Page. Access is protected by the page's own native WordPress password protection — no new user role or login system to manage. The password is re-verified on save, not just on page view, so the save endpoint can't be reached by skipping the password screen.
 = 2.0 =
 
 **Core registrations**

@@ -1,22 +1,31 @@
 <?php
 /**
- * View: tela de Presença (Attendance), com abas "Take Attendance" e
- * "History".
+ * View: versão pública (shortcode `[mcr_attendance]`) da tela de
+ * Presença, exibida fora do admin numa página comum do WordPress.
  *
- * Variáveis disponíveis (definidas em Attendance_Admin::render_page):
+ * Mesma estrutura e classes CSS/JS da versão de admin
+ * (includes/views/view-attendance.php), mudando apenas: onde os links e
+ * formulários apontam (a própria página, em vez de admin.php), o nome
+ * dos parâmetros de URL (prefixados "mcr_" para não colidir com outros
+ * parâmetros do tema/outros plugins na mesma página), e a ação de
+ * salvar (própria, com seu próprio nonce e sem exigir capacidade de
+ * administrador - a proteção aqui é a senha da própria página).
  *
- * @var string             $active_tab           Aba ativa ('take' ou 'history').
- * @var array<int,string>  $programs             Lista de programas/interesses distintos já usados.
- * @var string             $selected_program     Programa selecionado atualmente.
- * @var string             $selected_date        Data selecionada atualmente (Y-m-d).
- * @var array              $roster               Lista de presença (Attendance::get_roster()), quando aplicável.
- * @var array              $consecutive_absences Mapa registration_id => faltas consecutivas.
- * @var string|null        $last_session_date    Data da sessão anterior mais recente, ou null.
- * @var array              $last_session_map     Mapa registration_id => {status,notes} da sessão anterior.
- * @var array|false        $saved_summary        Resumo da última chamada salva (array{saved:int,attempted:int}), ou false.
- * @var array              $history_rows         Sessões de chamada já feitas (aba History).
- * @var string             $history_date_from    Filtro de data inicial da aba History.
- * @var string             $history_date_to      Filtro de data final da aba History.
+ * Variáveis disponíveis (definidas em Attendance_Shortcode::render_shortcode):
+ *
+ * @var int                 $post_id              ID da página que contém o shortcode.
+ * @var string              $active_tab           Aba ativa ('take' ou 'history').
+ * @var array<int,string>   $programs             Lista de programas/interesses distintos já usados.
+ * @var string              $selected_program     Programa selecionado atualmente.
+ * @var string              $selected_date        Data selecionada atualmente (Y-m-d).
+ * @var array               $roster               Lista de presença, quando aplicável.
+ * @var array               $consecutive_absences Mapa registration_id => faltas consecutivas.
+ * @var string|null         $last_session_date    Data da sessão anterior mais recente, ou null.
+ * @var array               $last_session_map     Mapa registration_id => {status,notes} da sessão anterior.
+ * @var array|null          $saved_summary        Resumo do último salvamento (array{saved:int,attempted:int}), ou null.
+ * @var array               $history_rows         Sessões de chamada já feitas (aba History).
+ * @var string              $history_date_from    Filtro de data inicial da aba History.
+ * @var string              $history_date_to      Filtro de data final da aba History.
  *
  * @package Music_Club_Registrations
  */
@@ -24,40 +33,13 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
-$page_slug = \Music_Club_Registrations\Attendance_Admin::ATTENDANCE_SLUG;
-
-/**
- * Monta a URL de uma aba da tela de Attendance.
- *
- * @param string $tab Slug da aba.
- * @return string
- */
-function mcr_attendance_tab_url( $tab ) {
-	return add_query_arg(
-		array(
-			'page' => \Music_Club_Registrations\Attendance_Admin::ATTENDANCE_SLUG,
-			'view' => $tab,
-		),
-		admin_url( 'admin.php' )
-	);
-}
 ?>
-<div class="wrap mcr-wrap mcr-attendance-wrap">
-	<h1><?php esc_html_e( 'Attendance', 'music-club-registrations' ); ?></h1>
-
-	<div class="notice notice-info inline mcr-shortcode-hint">
-		<p>
-			<?php esc_html_e( 'Want a teacher to take attendance without giving them access to wp-admin? Create a WordPress Page, add this shortcode to it, and set the page\'s visibility to "Password Protected" so only people with the password can open it:', 'music-club-registrations' ); ?>
-		</p>
-		<p><code>[mcr_attendance]</code></p>
-	</div>
-
+<div class="mcr-frontend-attendance mcr-attendance-wrap">
 	<h2 class="nav-tab-wrapper">
-		<a href="<?php echo esc_url( mcr_attendance_tab_url( 'take' ) ); ?>" class="nav-tab <?php echo 'take' === $active_tab ? 'nav-tab-active' : ''; ?>">
+		<a href="<?php echo esc_url( \Music_Club_Registrations\Attendance_Shortcode::tab_url( 'take', $post_id ) ); ?>" class="nav-tab <?php echo 'take' === $active_tab ? 'nav-tab-active' : ''; ?>">
 			<?php esc_html_e( 'Take Attendance', 'music-club-registrations' ); ?>
 		</a>
-		<a href="<?php echo esc_url( mcr_attendance_tab_url( 'history' ) ); ?>" class="nav-tab <?php echo 'history' === $active_tab ? 'nav-tab-active' : ''; ?>">
+		<a href="<?php echo esc_url( \Music_Club_Registrations\Attendance_Shortcode::tab_url( 'history', $post_id ) ); ?>" class="nav-tab <?php echo 'history' === $active_tab ? 'nav-tab-active' : ''; ?>">
 			<?php esc_html_e( 'History', 'music-club-registrations' ); ?>
 		</a>
 	</h2>
@@ -70,7 +52,7 @@ function mcr_attendance_tab_url( $tab ) {
 
 	<?php elseif ( 'take' === $active_tab ) : ?>
 
-		<?php if ( false !== $saved_summary ) : ?>
+		<?php if ( null !== $saved_summary ) : ?>
 			<?php if ( $saved_summary['saved'] === $saved_summary['attempted'] && $saved_summary['attempted'] > 0 ) : ?>
 				<div class="notice notice-success inline">
 					<p>
@@ -93,7 +75,7 @@ function mcr_attendance_tab_url( $tab ) {
 						<?php
 						printf(
 							/* translators: 1: number saved, 2: number attempted */
-							esc_html__( 'Only %1$d of %2$d student(s) were actually saved — something went wrong while writing to the database. Check Music Club > Logs (context "attendance") for the exact error.', 'music-club-registrations' ),
+							esc_html__( 'Only %1$d of %2$d student(s) were actually saved — something went wrong. Please tell the site administrator.', 'music-club-registrations' ),
 							(int) $saved_summary['saved'],
 							(int) $saved_summary['attempted']
 						);
@@ -103,11 +85,9 @@ function mcr_attendance_tab_url( $tab ) {
 			<?php endif; ?>
 		<?php endif; ?>
 
-		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="mcr-attendance-load-form">
-			<input type="hidden" name="page" value="<?php echo esc_attr( $page_slug ); ?>" />
-
+		<form method="get" action="<?php echo esc_url( get_permalink( $post_id ) ); ?>" class="mcr-attendance-load-form">
 			<label for="mcr-attendance-program"><strong><?php esc_html_e( 'Program', 'music-club-registrations' ); ?></strong></label>
-			<select name="program" id="mcr-attendance-program">
+			<select name="mcr_program" id="mcr-attendance-program">
 				<option value=""><?php esc_html_e( '— Select program —', 'music-club-registrations' ); ?></option>
 				<?php foreach ( $programs as $program ) : ?>
 					<option value="<?php echo esc_attr( $program ); ?>" <?php selected( $selected_program, $program ); ?>>
@@ -117,7 +97,7 @@ function mcr_attendance_tab_url( $tab ) {
 			</select>
 
 			<label for="mcr-attendance-date"><strong><?php esc_html_e( 'Date', 'music-club-registrations' ); ?></strong></label>
-			<input type="date" name="attendance_date" id="mcr-attendance-date" value="<?php echo esc_attr( $selected_date ); ?>" />
+			<input type="date" name="mcr_date" id="mcr-attendance-date" value="<?php echo esc_attr( $selected_date ); ?>" />
 
 			<button type="submit" class="button button-primary"><?php esc_html_e( 'Load Students', 'music-club-registrations' ); ?></button>
 		</form>
@@ -141,12 +121,13 @@ function mcr_attendance_tab_url( $tab ) {
 		<?php else : ?>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="mcr-attendance-form" data-confirm-leave="<?php esc_attr_e( 'You have unsaved attendance changes. Leave this page without saving?', 'music-club-registrations' ); ?>">
-				<?php wp_nonce_field( 'mcr_save_attendance' ); ?>
-				<input type="hidden" name="action" value="mcr_save_attendance" />
+				<?php wp_nonce_field( \Music_Club_Registrations\Attendance_Shortcode::SAVE_ACTION ); ?>
+				<input type="hidden" name="action" value="<?php echo esc_attr( \Music_Club_Registrations\Attendance_Shortcode::SAVE_ACTION ); ?>" />
+				<input type="hidden" name="post_id" value="<?php echo esc_attr( $post_id ); ?>" />
 				<input type="hidden" name="program" value="<?php echo esc_attr( $selected_program ); ?>" />
 				<input type="hidden" name="attendance_date" value="<?php echo esc_attr( $selected_date ); ?>" />
 
-				<h2>
+				<h3>
 					<?php
 					printf(
 						/* translators: 1: program name, 2: formatted date */
@@ -155,7 +136,7 @@ function mcr_attendance_tab_url( $tab ) {
 						esc_html( mysql2date( get_option( 'date_format' ), $selected_date ) )
 					);
 					?>
-				</h2>
+				</h3>
 
 				<div class="mcr-attendance-toolbar">
 					<button type="button" class="button" id="mcr-mark-all-present">
@@ -235,12 +216,11 @@ function mcr_attendance_tab_url( $tab ) {
 
 	<?php else : ?>
 
-		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="mcr-attendance-load-form">
-			<input type="hidden" name="page" value="<?php echo esc_attr( $page_slug ); ?>" />
-			<input type="hidden" name="view" value="history" />
+		<form method="get" action="<?php echo esc_url( get_permalink( $post_id ) ); ?>" class="mcr-attendance-load-form">
+			<input type="hidden" name="mcr_view" value="history" />
 
 			<label for="mcr-attendance-history-program"><strong><?php esc_html_e( 'Program', 'music-club-registrations' ); ?></strong></label>
-			<select name="program" id="mcr-attendance-history-program">
+			<select name="mcr_program" id="mcr-attendance-history-program">
 				<option value=""><?php esc_html_e( 'All programs', 'music-club-registrations' ); ?></option>
 				<?php foreach ( $programs as $program ) : ?>
 					<option value="<?php echo esc_attr( $program ); ?>" <?php selected( $selected_program, $program ); ?>>
@@ -250,10 +230,10 @@ function mcr_attendance_tab_url( $tab ) {
 			</select>
 
 			<label for="mcr-history-date-from"><strong><?php esc_html_e( 'From', 'music-club-registrations' ); ?></strong></label>
-			<input type="date" name="date_from" id="mcr-history-date-from" value="<?php echo esc_attr( $history_date_from ); ?>" />
+			<input type="date" name="mcr_date_from" id="mcr-history-date-from" value="<?php echo esc_attr( $history_date_from ); ?>" />
 
 			<label for="mcr-history-date-to"><strong><?php esc_html_e( 'To', 'music-club-registrations' ); ?></strong></label>
-			<input type="date" name="date_to" id="mcr-history-date-to" value="<?php echo esc_attr( $history_date_to ); ?>" />
+			<input type="date" name="mcr_date_to" id="mcr-history-date-to" value="<?php echo esc_attr( $history_date_to ); ?>" />
 
 			<button type="submit" class="button"><?php esc_html_e( 'Filter', 'music-club-registrations' ); ?></button>
 		</form>
@@ -286,7 +266,7 @@ function mcr_attendance_tab_url( $tab ) {
 							<td><?php echo (int) $session['late']; ?></td>
 							<td><?php echo (int) $session['excused']; ?></td>
 							<td>
-								<a href="<?php echo esc_url( add_query_arg( array( 'page' => $page_slug, 'view' => 'take', 'program' => $session['program'], 'attendance_date' => $session['attendance_date'] ), admin_url( 'admin.php' ) ) ); ?>">
+								<a href="<?php echo esc_url( add_query_arg( array( 'mcr_view' => 'take', 'mcr_program' => $session['program'], 'mcr_date' => $session['attendance_date'] ), get_permalink( $post_id ) ) ); ?>">
 									<?php esc_html_e( 'View / Edit', 'music-club-registrations' ); ?>
 								</a>
 							</td>
